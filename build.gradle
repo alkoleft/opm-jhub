@@ -1,0 +1,79 @@
+plugins {
+    id 'org.springframework.boot' version '2.2.6.RELEASE'
+    id 'io.spring.dependency-management' version '1.0.9.RELEASE'
+    id 'io.franzbecker.gradle-lombok' version '3.3.0'
+    id 'java'
+}
+
+group 'io.oscript'
+version '1.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+repositories {
+    mavenCentral()
+}
+
+jar {
+    enabled = true
+}
+
+bootJar {
+//    https://docs.spring.io/spring-boot/docs/2.2.6.RELEASE/gradle-plugin/reference/html/#packaging-executable
+    excludeDevtools = false
+    classifier = 'boot'
+    launchScript()
+}
+
+lombok {
+    version = '1.18.12'
+    sha256 = ""
+}
+
+sourceSets {
+    main {
+        java {}
+        resources {}
+    }
+    test {
+        java {}
+        resources {}
+    }
+}
+
+dependencies {
+
+    // region Spring boot core
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-logging'
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
+    compileOnly("org.springframework.boot:spring-boot-devtools")
+//    implementation 'org.springframework.boot:spring-boot-starter-security'
+    // endregion
+
+    // region Test & debug
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.5.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.5.2'
+    testImplementation 'org.assertj:assertj-core:3.11.1'
+
+//    testImplementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.9'
+
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+    }
+    // endregion
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        exceptionFormat = 'full'
+    }
+}
+
+wrapper {
+    gradleVersion = '6.3'
+}
