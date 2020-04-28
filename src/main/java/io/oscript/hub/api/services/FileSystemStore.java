@@ -1,12 +1,18 @@
 package io.oscript.hub.api.services;
 
+import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.data.IPackageMetadata;
+import io.oscript.hub.api.data.Package;
 import io.oscript.hub.api.data.PackageInfo;
 import io.oscript.hub.api.ospx.OspxPackage;
 import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.Constants;
 import io.oscript.hub.api.utils.JSON;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 
+import javax.annotation.PostConstruct;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,36 +23,39 @@ import java.util.stream.Collectors;
 
 public class FileSystemStore implements IStore {
 
-    static final Path basePath = Path.of("c:\\tmp\\opm_hub\\");
+    static final Logger logger = LoggerFactory.getLogger(FileSystemStore.class);
+
+    @Autowired
+    public HubConfiguration configuration;
+
+    List<Package> packages;
 
     @Override
-    public List<PackageInfo> getPackages(String channel) {
+    public List<Package> getPackages(String channel) {
+        return packages;
+    }
 
-        Path path = getChannelPath(channel);
+    @PostConstruct
+    public void init() {
+        getAllPackages();
+    }
 
-        try {
-            return Files.list(path)
-                    .filter(Files::isDirectory)
-                    .map(item -> item.resolve(Constants.metadataFile))
-                    .map(item -> JSON.deserialize(item, PackageInfo.class))
-                    .sorted((item1, item2) -> item1.getName().compareToIgnoreCase(item2.getName()))
-                    .collect(Collectors.toList());
-        } catch (IOException ex) {
-            return new ArrayList<>();
-        }
+    public Package getPackage(String packageName) {
+        if (Common.isNullOrEmpty(packageName))
+            return null;
+        return packages.stream().filter(item -> item.getName().equalsIgnoreCase(packageName)).findFirst().orElse(null);
     }
 
     @Override
-    public PackageInfo getPackage(String packageName, String channel) {
-        for (var packageInfo : getPackages(channel)) {
-            if (packageInfo.getName().equals(packageName))
-                return packageInfo;
-        }
-        return null;
+    public Package getPackage(String packageName, String channel) {
+        return getPackage(packageName);
     }
 
     @Override
     public PackageInfo getVersion(String packageName, String version, String channel) {
+        if (Common.isNullOrEmpty(version) || version.equalsIgnoreCase("latest")) {
+            version = getPackage(packageName, channel).getVersion();
+        }
         Path path = getVersionPath(packageName, version, channel).resolve(Constants.metadataFile);
 
         return JSON.deserialize(path, PackageInfo.class);
@@ -90,7 +99,30 @@ public class FileSystemStore implements IStore {
             saveMaxVersion(ospxPackage, channel);
         }
 
+        updatePackage(ospxPackage);
+
         return true;
+    }
+
+    void updatePackage(OspxPackage ospxPackage) {
+        var metadata = ospxPackage.getMetadata();
+        Package pack = getAllPackages().stream().filter((Package item) -> item.getName().equalsIgnoreCase(metadata.getName())).findFirst().orElse(null);
+
+        if (pack == null) {
+            pack = new Package();
+            pack.setName(metadata.getName());
+            pack.setDescription(metadata.getDescription());
+            pack.setVersion(metadata.getVersion());
+            packages.add(pack);
+        } else if (pack.getVersion() == null || pack.getVersion().compareToIgnoreCase(metadata.getVersion()) <= 0) {
+            pack.setVersion(metadata.getVersion());
+        }
+
+        Path path = getPackagesInfoPath().resolve(String.format("%s.json", pack.getName()));
+        try {
+            JSON.serialize(pack, path);
+        } catch (Exception ignore) {
+        }
     }
 
     @Override
@@ -102,7 +134,20 @@ public class FileSystemStore implements IStore {
     }
 
     protected Path getWorkPath() {
-        return basePath;
+        return configuration.getStorePath();
+    }
+
+    protected Path getPackagesInfoPath() {
+        try {
+            Path path = configuration.getSettingsPath().resolve("packages");
+            if (Files.notExists(path)) {
+                Files.createDirectories(path);
+            }
+            return path;
+        } catch (Exception ignore) {
+        }
+
+        return null;
     }
 
     protected Path getChannelPath(String channel) {
@@ -132,12 +177,34 @@ public class FileSystemStore implements IStore {
     }
 
     protected void saveMaxVersion(OspxPackage ospxPackage, String channel) throws IOException {
-        Path path = getPackagePath(ospxPackage.getMetadata().getName(), channel);
+//        Path path = getPackagePath(ospxPackage.getMetadata().getName(), channel);
+//
+//        Path latestPath = path.resolve("latest");
+//        Path versionPath = getVersionPath(ospxPackage.getMetadata(), channel);
+//        Files.deleteIfExists(latestPath);
+//
+//        Files.createSymbolicLink(latestPath, versionPath);
+    }
 
-        Path latestPath = path.resolve("latest");
-        Path versionPath = getVersionPath(ospxPackage.getMetadata(), channel);
-        Files.deleteIfExists(latestPath);
+    public List<Package> getAllPackages() {
+        if (packages == null) {
+            packages = new ArrayList<>();
+            try {
+                Files.list(getPackagesInfoPath()).forEach(file -> {
+                            packages.add(JSON.deserialize(file, Package.class));
+                        }
+                );
 
-        Files.createSymbolicLink(latestPath, versionPath);
+            } catch (Exception e) {
+                logger.error("Ошибка загрузки списка пакетов", e);
+            }
+        }
+
+        for (var pack : packages) {
+            getVersions(pack.getName(), Constants.defaultChannel).forEach(item -> {
+                pack.getVersions().add(item.getVersion());
+            });
+        }
+        return packages;
     }
 }

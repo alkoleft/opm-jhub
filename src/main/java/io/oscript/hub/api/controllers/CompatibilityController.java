@@ -1,7 +1,7 @@
 package io.oscript.hub.api.controllers;
 
 import io.oscript.hub.api.data.IPackageMetadata;
-import io.oscript.hub.api.data.PackageInfo;
+import io.oscript.hub.api.data.Package;
 import io.oscript.hub.api.data.RequestParameters;
 import io.oscript.hub.api.response.Response;
 import org.springframework.http.HttpHeaders;
@@ -23,7 +23,7 @@ public class CompatibilityController extends BaseController {
         String body = store
                 .getPackages(parameters.getChannel())
                 .stream()
-                .map(PackageInfo::getName)
+                .map(Package::getName)
                 .collect(Collectors.joining("\n"));
 
         return getFileResponse("list.txt", body);

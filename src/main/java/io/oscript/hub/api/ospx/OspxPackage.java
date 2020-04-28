@@ -19,11 +19,11 @@ public class OspxPackage {
     protected OspxPackage() {
     }
 
-    public static OspxPackage parse(InputStream stream) throws IOException {
+    public static OspxPackage parse(byte[] binary) throws IOException {
 
         OspxPackage packageData = new OspxPackage();
 
-        packageData.packageRaw = new ByteArrayInputStream(stream.readAllBytes());
+        packageData.packageRaw = new ByteArrayInputStream(binary);
         var contentMap = ZIP.unpuck(packageData.packageRaw);
 
         packageData.contentRaw = new ByteArrayInputStream(contentMap.get(contentName));
@@ -32,6 +32,10 @@ public class OspxPackage {
         packageData.metadata = XML.deserialize(packageData.metadataRaw, Metadata.class);
 
         return packageData;
+    }
+
+    public static OspxPackage parse(InputStream stream) throws IOException {
+       return parse(stream.readAllBytes());
     }
 
     public ByteArrayInputStream getPackageRaw() {

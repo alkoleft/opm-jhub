@@ -1,13 +1,11 @@
 package io.oscript.hub.api.controllers;
 
+import io.oscript.hub.api.data.Package;
 import io.oscript.hub.api.data.PackageInfo;
-import io.oscript.hub.api.data.RequestParameters;
-import io.oscript.hub.api.response.ErrorResponse;
 import io.oscript.hub.api.response.Response;
-import io.oscript.hub.api.services.IStore;
-import io.oscript.hub.api.services.Saver;
 import io.oscript.hub.api.utils.Constants;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,14 +21,14 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 public class ListController extends BaseController {
 
+    static final Logger logger = LoggerFactory.getLogger(ListController.class);
 
     @GetMapping("packages")
-    public ResponseEntity<List<PackageInfo>> packageList() throws IOException {
+    public ResponseEntity<List<Package>> packageList() throws IOException {
         var body = store.getPackages(Constants.defaultChannel);
 
         return ResponseEntity
@@ -40,7 +38,7 @@ public class ListController extends BaseController {
     }
 
     @GetMapping("packages/{name}")
-    public ResponseEntity<PackageInfo> packageInfo(@PathVariable("name") String packageName) {
+    public ResponseEntity<Package> packageInfo(@PathVariable("name") String packageName) {
         var body = store.getPackage(packageName, Constants.defaultChannel);
 
         if (body != null) {

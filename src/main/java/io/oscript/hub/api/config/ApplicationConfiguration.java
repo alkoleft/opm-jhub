@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 public class ApplicationConfiguration {
     @Bean
     public IStore getStore() {
-        return new FileSystemStore();
+        var store = new FileSystemStore();
+        return store;
     }
 }

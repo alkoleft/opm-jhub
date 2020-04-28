@@ -4,3 +4,5 @@ gradlew.bat
 gradlew
 build/*
 gradle/*
+application.properties
+*.json

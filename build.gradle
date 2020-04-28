@@ -51,6 +51,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-logging'
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
     compileOnly("org.springframework.boot:spring-boot-devtools")
+    compile group: 'org.kohsuke', name: 'github-api', version: '1.111'
 //    implementation 'org.springframework.boot:spring-boot-starter-security'
     // endregion
 
