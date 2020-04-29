@@ -1,4 +1,4 @@
-package io.oscript.hub.api.integration;
+package io.oscript.hub.api.integration.classicopmhub;
 
 import io.oscript.hub.api.controllers.ListController;
 import org.slf4j.Logger;
@@ -14,7 +14,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public class MirrorHubOscript {
+public class ClassicHubIntegration {
 
     static final Logger logger = LoggerFactory.getLogger(ListController.class);
 

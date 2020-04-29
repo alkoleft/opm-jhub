@@ -1,5 +1,6 @@
 package io.oscript.hub.api.integration;
 
+import io.oscript.hub.api.integration.classicopmhub.ClassicHubIntegration;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -13,7 +14,7 @@ class MirrorTest {
 
     @Test
     void packages() throws IOException, InterruptedException {
-        var packages = MirrorHubOscript.packages("https://hub.oscript.io");
+        var packages = ClassicHubIntegration.packages("https://hub.oscript.io");
 
         assertThat(packages)
                 .contains("configor")

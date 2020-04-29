@@ -6,12 +6,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-public class Config {
+public class CollectRepositoriesConfig {
 
     List<String> organizations = new ArrayList<>();
     List<String> users = new ArrayList<>();
     List<String> repositories = new ArrayList<>();
 
-    public Config() {
+    public CollectRepositoriesConfig() {
     }
 }

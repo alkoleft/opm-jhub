@@ -1,8 +1,8 @@
 package io.oscript.hub.api.integration;
 
-import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.data.Package;
-import io.oscript.hub.api.integration.github.GithubReleases;
+import io.oscript.hub.api.integration.github.GitHubPackageSource;
+import io.oscript.hub.api.integration.github.GithubIntegration;
 import io.oscript.hub.api.integration.github.Release;
 import io.oscript.hub.api.integration.github.Repository;
 import io.oscript.hub.api.ospx.Metadata;
@@ -28,15 +28,16 @@ public class Importer {
     @Autowired
     FileSystemStore store;
 
-    public void init(HubConfiguration configuration) throws IOException {
-        GithubReleases.init(configuration);
-    }
-
     public void importPackages() throws IOException, InterruptedException {
+
+        GitHubPackageSource ghSource = new GitHubPackageSource();
+
+        ghSource.releases()
+                .filter(release -> !store.containsVersion(release.getRepository().getPackageID(), release.getVersion()));
 //        Set<Repository> repositoriesForHandling = new HashSet<>(GithubReleases.findNewRepositories());
 //
 //        repositoriesForHandling.addAll(GithubReleases.findNewReleases(Integer.MAX_VALUE));
-        Set<Repository> repositoriesForHandling = new HashSet<>(GithubReleases.getRepositories());
+        Set<Repository> repositoriesForHandling = new HashSet<>(GithubIntegration.getRepositories());
 
         for (Repository rep : repositoriesForHandling) {
 
@@ -76,7 +77,7 @@ public class Importer {
             }
         }
 
-        GithubReleases.save();
+        GithubIntegration.save();
     }
 
 
@@ -86,7 +87,7 @@ public class Importer {
         }
 
         logger.info("Загрузка пакета {}", release.getVersion());
-        var data = GithubReleases.download(URI.create(release.getPackageUrl()));
+        var data = GithubIntegration.download(URI.create(release.getPackageUrl()));
         if (data == null) {
             logger.error("Не удалось загрузить пакет");
             return null;

@@ -9,9 +9,10 @@ import org.kohsuke.github.GHRepository;
 import org.kohsuke.github.GitHub;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 
+import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
@@ -19,30 +20,36 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
-public class GithubReleases {
-    final static Logger logger = LoggerFactory.getLogger(GithubReleases.class);
-    static GitHub client;
-    static Config config;
-    static List<Repository> repositories;
+public class GithubIntegration {
+
+    @Autowired
     static HubConfiguration configuration;
 
-    public static void init(HubConfiguration configuration) throws IOException {
-        GithubReleases.configuration = configuration;
+    final static Logger logger = LoggerFactory.getLogger(GithubIntegration.class);
+    static GitHub client;
+    static CollectRepositoriesConfig config;
+    static List<Repository> repositories;
 
+    @PostConstruct
+    public static void init() throws IOException {
         var stream = configuration.getConfiguration("repositories");
         if (stream == null) {
             repositories = new ArrayList<>();
         } else {
             repositories = JSON.deserializeList(stream, Repository.class);
             stream.close();
+            repositories.forEach(repository -> repository.getReleases().forEach(release -> release.repository = repository));
         }
 
         stream = configuration.getConfiguration("github");
         if (stream == null) {
-            config = new Config();
+            config = new CollectRepositoriesConfig();
         } else {
-            config = JSON.deserialize(stream, Config.class);
+            config = JSON.deserialize(stream, CollectRepositoriesConfig.class);
             stream.close();
         }
     }
@@ -63,78 +70,88 @@ public class GithubReleases {
         return JSON.deserializeList(file, Repository.class);
     }
 
-    public static List<Repository> findNewRepositories() throws IOException {
-        List<GHPerson> persons = new ArrayList<>();
-        List<Repository> newRepositories = new ArrayList<>();
-
-        for (var value : config.organizations) {
-            persons.add(getSource(GithubSourceType.Organisation, value));
+    static Stream<Repository> findNewRepositories(GHPerson person) {
+        try {
+            return person
+                    .getRepositories()
+                    .values()
+                    .stream()
+                    .filter(ghrep -> repositories.stream()
+                            .filter(exists -> exists.fullName.equalsIgnoreCase(ghrep.getFullName()))
+                            .findFirst()
+                            .isEmpty()
+                    )
+                    .map(Repository::create)
+                    .filter(Objects::nonNull);
+        } catch (Exception e) {
+            logger.error("Ошибка обработки репозитория", e);
+            return null;
         }
-
-        for (var value : config.users) {
-            persons.add(getSource(GithubSourceType.User, value));
-        }
-
-        for (var person : persons) {
-            assert person != null;
-            for (var rep : person.getRepositories().values()) {
-                Repository repository = new Repository();
-                repository.fullName = getMainRepository(rep).getFullName();
-                repositories.add(repository);
-                newRepositories.add(repository);
-            }
-        }
-
-        saveRepositories();
-
-        return repositories;// newRepositories;
     }
 
-    public static List<Repository> findNewReleases(int maxCount) throws IOException {
+    public static void findNewRepositories() throws IOException {
+        var newRepositories = Stream.concat(
+                config.organizations.stream().map(item -> getSource(GithubSourceType.Organisation, item)),
+                config.users.stream().map(item -> getSource(GithubSourceType.User, item))
+        )
+                .filter(Objects::nonNull)
+                .map(GithubIntegration::findNewRepositories)
+                .filter(Objects::nonNull)
+                .reduce(Stream::concat);
+        if (newRepositories.isPresent()) {
+            newRepositories.get().forEach(repositories::add);
+            saveRepositories();
+        }
+    }
+
+    static boolean suitableRelease(GHRelease ghRelease, Release lastRelease) {
+        if (ghRelease.isDraft() || ghRelease.isPrerelease())
+            return false;
+
+        return lastRelease == null || lastRelease.getVersion().compareTo(ghRelease.getTagName()) < 0;
+    }
+
+    static Release createRelease(GHRelease ghRelease) {
+        Release release = new Release();
+        release.setTag(ghRelease.getTagName());
+        release.setZipUrl(ghRelease.getZipballUrl());
+        try {
+            release.setDate(ghRelease.getCreatedAt());
+        } catch (IOException ignore) {
+        }
+
+        try {
+            for (var asset : ghRelease.getAssets()) {
+                if (asset.getName().endsWith(".ospx")) {
+                    release.setPackageUrl(asset.getBrowserDownloadUrl());
+                }
+
+            }
+        } catch (IOException ignore) {
+        }
+        return release;
+    }
+
+    static Stream<Release> loadReleases(Repository rep, boolean onlyNew) throws IOException {
+        Release lastRelease = onlyNew ? rep.maxRelease() : null;
+        GHRepository repository = getClient().getRepository(rep.getFullName());
+
+        return StreamSupport.stream(repository.listReleases().spliterator(), false)
+                .filter(item -> suitableRelease(item, lastRelease))
+                .map(GithubIntegration::createRelease);
+
+    }
+
+    public static List<Repository> findNewReleases() throws IOException {
 
         List<Repository> repositoriesWithNewReleases = new ArrayList<>();
 
-        int counter = 0;
-
         for (Repository rep : repositories) {
-            Release lastRelease = rep.maxRelease();
-            GHRepository repository = getClient().getRepository(rep.getFullName());
+            var newReleases = loadReleases(rep, true);
+            newReleases.forEach(rep::addRelease);
 
-            boolean containsNewReleases = false;
-
-            for (GHRelease ghRelease : repository.listReleases()) {
-                if (ghRelease.isDraft())
-                    continue;
-                if (ghRelease.isPrerelease())
-                    continue;
-
-                if (lastRelease == null || lastRelease.getVersion().compareTo(ghRelease.getTagName()) < 0) {
-                    Release release = new Release();
-                    release.setTag(ghRelease.getTagName());
-                    release.setZipUrl(ghRelease.getZipballUrl());
-                    release.setDate(ghRelease.getCreatedAt());
-
-                    for (var asset : ghRelease.getAssets()) {
-                        if (asset.getName().endsWith(".ospx")) {
-                            release.setPackageUrl(asset.getBrowserDownloadUrl());
-                        }
-
-                    }
-
-                    rep.releases.add(release);
-                    containsNewReleases = true;
-                    counter++;
-                } else {
-                    break;
-                }
-            }
-
-            if (containsNewReleases) {
+            if (newReleases.findFirst().isPresent()) {
                 repositoriesWithNewReleases.add(rep);
-            }
-
-            if (maxCount < counter) {
-                break;
             }
         }
 
@@ -237,17 +254,24 @@ public class GithubReleases {
         return client;
     }
 
-    static GHPerson getSource(GithubSourceType type, String value) throws IOException {
-        var client = getClient();
-        switch (type) {
-            case Organisation:
-                return client.getOrganization(value);
-            case User:
-                return client.getUser(value);
-            default:
-                logger.error("Неизвестный тип источника");
-                return null;
+    static GHPerson getSource(GithubSourceType type, String value) {
+        try {
+
+            var client = getClient();
+            switch (type) {
+                case Organisation:
+                    return client.getOrganization(value);
+                case User:
+                    return client.getUser(value);
+                default:
+                    logger.error("Неизвестный тип источника");
+                    return null;
+            }
+        } catch (Exception e) {
+            logger.error("Ошибка поиска группы репозиториев", e);
+            return null;
         }
+
     }
 
     static Package getPackage(GHRepository repository, GHPerson source) throws IOException {
@@ -296,6 +320,7 @@ public class GithubReleases {
             this.release = release;
             this.url = release.getUrl().toString();
         }
+
     }
 
     static void saveVersionsInfo(List<io.oscript.hub.api.integration.Package> packages) throws IOException {

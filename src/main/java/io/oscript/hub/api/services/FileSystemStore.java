@@ -207,4 +207,8 @@ public class FileSystemStore implements IStore {
         }
         return packages;
     }
+
+    public boolean containsVersion(String packageID, String version) {
+        return getVersion(packageID, version, Constants.defaultChannel) != null;
+    }
 }

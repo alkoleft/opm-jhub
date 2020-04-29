@@ -1,7 +1,7 @@
 package io.oscript.hub.api.integration;
 
 import io.oscript.hub.api.config.HubConfiguration;
-import io.oscript.hub.api.integration.github.GithubReleases;
+import io.oscript.hub.api.integration.github.GithubIntegration;
 import io.oscript.hub.api.services.FileSystemStore;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -23,7 +23,7 @@ class ImporterTest {
     void importPackages() throws IOException, InterruptedException {
         Importer importer = new Importer();
 
-        GithubReleases.init(configuration);
+        GithubIntegration.init(configuration);
         importer.store = new FileSystemStore();
         importer.store.configuration = configuration;
         importer.store.getAllPackages();
