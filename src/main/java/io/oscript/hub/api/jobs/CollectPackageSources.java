@@ -1,14 +1,28 @@
 package io.oscript.hub.api.jobs;
 
-import io.oscript.hub.api.integration.github.Repository;
+import io.oscript.hub.api.integration.PackageSource;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.NonTransientResourceException;
 import org.springframework.batch.item.ParseException;
 import org.springframework.batch.item.UnexpectedInputException;
 
-public class CollectPackageSources implements ItemReader<Repository> {
+import java.util.Iterator;
+import java.util.stream.Stream;
+
+public class CollectPackageSources implements ItemReader<PackageSource> {
+
+    Iterator<PackageSource> stream;
+
+    CollectPackageSources(Stream<PackageSource> packageSourceStream) {
+        stream = packageSourceStream.iterator();
+    }
+
     @Override
-    public Repository read() throws Exception, UnexpectedInputException, ParseException, NonTransientResourceException {
-        return null;
+    public PackageSource read() throws Exception, UnexpectedInputException, ParseException, NonTransientResourceException {
+        if (stream.hasNext()) {
+            return stream.next();
+        } else {
+            return null;
+        }
     }
 }

@@ -23,7 +23,7 @@ class ImporterTest {
     void importPackages() throws IOException, InterruptedException {
         Importer importer = new Importer();
 
-        GithubIntegration.init(configuration);
+        GithubIntegration.init();
         importer.store = new FileSystemStore();
         importer.store.configuration = configuration;
         importer.store.getAllPackages();

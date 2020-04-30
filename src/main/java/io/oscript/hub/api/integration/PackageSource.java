@@ -6,5 +6,9 @@ public interface PackageSource {
 
     PackageSourceType getType();
 
+    String getVersion();
+
+    String getPackageID();
+
     InputStream getStream();
 }

@@ -1,6 +1,7 @@
 package io.oscript.hub.api.integration;
 
 import io.oscript.hub.api.data.Package;
+import io.oscript.hub.api.integration.classicopmhub.ClassicHubPackageSource;
 import io.oscript.hub.api.integration.github.GitHubPackageSource;
 import io.oscript.hub.api.integration.github.GithubIntegration;
 import io.oscript.hub.api.integration.github.Release;
@@ -19,6 +20,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Stream;
 
 @Service
 public class Importer {
@@ -26,14 +28,23 @@ public class Importer {
     static final Logger logger = LoggerFactory.getLogger(Importer.class);
 
     @Autowired
-    FileSystemStore store;
+    static FileSystemStore store;
 
+    public static Stream<PackageSource>newReleases(){
+        GitHubPackageSource ghSource = new GitHubPackageSource();
+        ClassicHubPackageSource chSource = new ClassicHubPackageSource();
+        return Stream.concat(ghSource.releases(), chSource.releases())
+                .filter(release -> !store.containsVersion(release.getPackageID(), release.getVersion()));
+
+    }
     public void importPackages() throws IOException, InterruptedException {
 
         GitHubPackageSource ghSource = new GitHubPackageSource();
+        ClassicHubPackageSource chSource = new ClassicHubPackageSource();
+        var newReleases = Stream.concat(ghSource.releases(), chSource.releases())
+                .filter(release -> !store.containsVersion(release.getPackageID(), release.getVersion()));
 
-        ghSource.releases()
-                .filter(release -> !store.containsVersion(release.getRepository().getPackageID(), release.getVersion()));
+
 //        Set<Repository> repositoriesForHandling = new HashSet<>(GithubReleases.findNewRepositories());
 //
 //        repositoriesForHandling.addAll(GithubReleases.findNewReleases(Integer.MAX_VALUE));

@@ -50,9 +50,16 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-logging'
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
-    implementation 'org.springframework.boot:spring-boot-starter-batch'
+
+    implementation 'org.springframework.batch:spring-batch-core'
+    implementation 'org.springframework.batch:spring-batch-infrastructure'
+
     compileOnly("org.springframework.boot:spring-boot-devtools")
     compile group: 'org.kohsuke', name: 'github-api', version: '1.111'
+
+    compile group: 'org.springframework', name: 'spring-jdbc', version: '5.2.6.RELEASE'
+    compile group: 'org.hsqldb', name: 'hsqldb', version: '2.5.0'
+
 //    implementation 'org.springframework.boot:spring-boot-starter-security'
     // endregion
 
@@ -60,6 +67,13 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.5.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.5.2'
     testImplementation 'org.assertj:assertj-core:3.11.1'
+
+    testImplementation ('org.springframework.boot:spring-boot-starter-test'){
+        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+    }
+    testImplementation ('org.springframework.batch:spring-batch-test'){
+        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+    }
 
 //    testImplementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.9'
 

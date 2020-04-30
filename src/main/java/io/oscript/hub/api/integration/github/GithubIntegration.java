@@ -1,6 +1,5 @@
 package io.oscript.hub.api.integration.github;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.utils.JSON;
 import org.kohsuke.github.GHPerson;
@@ -16,10 +15,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -58,35 +55,23 @@ public class GithubIntegration {
         saveRepositories();
     }
 
+    public static void sync() {
+        try {
+            logger.info("Синхронизация с Github");
+            findNewRepositories();
+            findNewReleases();
+            logger.info("Синхронизация с Github завершилась успешно");
+        } catch (Exception e) {
+            logger.error("Ошибка синхронизации с Github", e);
+        }
+    }
+
     static void saveRepositories() throws IOException {
         configuration.saveConfiguration("repositories", repositories);
     }
 
     public static List<Repository> getRepositories() {
         return repositories;
-    }
-
-    public static List<Repository> loadRepositories(Path file) {
-        return JSON.deserializeList(file, Repository.class);
-    }
-
-    static Stream<Repository> findNewRepositories(GHPerson person) {
-        try {
-            return person
-                    .getRepositories()
-                    .values()
-                    .stream()
-                    .filter(ghrep -> repositories.stream()
-                            .filter(exists -> exists.fullName.equalsIgnoreCase(ghrep.getFullName()))
-                            .findFirst()
-                            .isEmpty()
-                    )
-                    .map(Repository::create)
-                    .filter(Objects::nonNull);
-        } catch (Exception e) {
-            logger.error("Ошибка обработки репозитория", e);
-            return null;
-        }
     }
 
     public static void findNewRepositories() throws IOException {
@@ -99,114 +84,29 @@ public class GithubIntegration {
                 .filter(Objects::nonNull)
                 .reduce(Stream::concat);
         if (newRepositories.isPresent()) {
-            newRepositories.get().forEach(repositories::add);
+            newRepositories.get().forEach(item -> {
+                logger.info("Найден новый репозиторий {}", item.getFullName());
+                repositories.add(item);
+            });
             saveRepositories();
         }
     }
 
-    static boolean suitableRelease(GHRelease ghRelease, Release lastRelease) {
-        if (ghRelease.isDraft() || ghRelease.isPrerelease())
-            return false;
+    public static void findNewReleases() throws IOException {
 
-        return lastRelease == null || lastRelease.getVersion().compareTo(ghRelease.getTagName()) < 0;
-    }
-
-    static Release createRelease(GHRelease ghRelease) {
-        Release release = new Release();
-        release.setTag(ghRelease.getTagName());
-        release.setZipUrl(ghRelease.getZipballUrl());
-        try {
-            release.setDate(ghRelease.getCreatedAt());
-        } catch (IOException ignore) {
-        }
-
-        try {
-            for (var asset : ghRelease.getAssets()) {
-                if (asset.getName().endsWith(".ospx")) {
-                    release.setPackageUrl(asset.getBrowserDownloadUrl());
-                }
-
-            }
-        } catch (IOException ignore) {
-        }
-        return release;
-    }
-
-    static Stream<Release> loadReleases(Repository rep, boolean onlyNew) throws IOException {
-        Release lastRelease = onlyNew ? rep.maxRelease() : null;
-        GHRepository repository = getClient().getRepository(rep.getFullName());
-
-        return StreamSupport.stream(repository.listReleases().spliterator(), false)
-                .filter(item -> suitableRelease(item, lastRelease))
-                .map(GithubIntegration::createRelease);
-
-    }
-
-    public static List<Repository> findNewReleases() throws IOException {
-
-        List<Repository> repositoriesWithNewReleases = new ArrayList<>();
+        boolean needSave = false;
 
         for (Repository rep : repositories) {
             var newReleases = loadReleases(rep, true);
-            newReleases.forEach(rep::addRelease);
-
-            if (newReleases.findFirst().isPresent()) {
-                repositoriesWithNewReleases.add(rep);
-            }
+            needSave |= newReleases.findFirst().isPresent();
+            newReleases.forEach(item -> {
+                logger.info("Найден новый релиз {}@{}", rep.getFullName(), item.getVersion());
+                rep.addRelease(item);
+            });
         }
 
-        return repositoriesWithNewReleases;
-    }
-
-    public static List<io.oscript.hub.api.integration.Package> collectInfo(GithubSource source) throws IOException, InterruptedException {
-        var packages = packages(source);
-
-        for (var pack : packages) {
-            versions((Package) pack);
-        }
-
-        saveVersionsInfo(packages);
-
-        return packages;
-    }
-
-    public static List<io.oscript.hub.api.integration.Package> packages(GithubSource source) throws IOException, InterruptedException {
-
-        List<io.oscript.hub.api.integration.Package> packages = new ArrayList<>();
-
-        var person = getSource(source);
-
-        if (person == null) {
-            return packages;
-        }
-
-        Map<String, GHRepository> repositories = person.getRepositories();
-
-        for (GHRepository repository : repositories.values()) {
-            Package aPackage = getPackage(repository, person);
-
-            packages.add(aPackage);
-
-            if (packages.size() >= 10)
-                break;
-        }
-
-        return packages;
-    }
-
-    public static List<io.oscript.hub.api.integration.Version> versions(Package aPackage) throws IOException {
-
-        logger.info("Получение информации о релизах {}", aPackage.getName());
-        for (GHRelease release : aPackage.repository.listReleases()) {
-            if (release.isDraft())
-                continue;
-            if (release.isPrerelease())
-                continue;
-            Version version = new Version(release);
-            aPackage.getVersions().add(version);
-        }
-
-        return aPackage.getVersions();
+        if (needSave)
+            saveRepositories();
     }
 
     public static byte[] download(URI url) throws IOException, InterruptedException {
@@ -230,20 +130,39 @@ public class GithubIntegration {
         return response.body();
     }
 
-    public static Package packageByID(GithubSource source, String repoID) throws IOException {
-        var person = getSource(source);
-
-        if (person == null) {
+    static Stream<Repository> findNewRepositories(GHPerson person) {
+        try {
+            return person
+                    .getRepositories()
+                    .values()
+                    .stream()
+                    .filter(ghrep -> repositories.stream()
+                            .filter(exists -> exists.fullName.equalsIgnoreCase(ghrep.getFullName()))
+                            .findFirst()
+                            .isEmpty()
+                    )
+                    .map(Repository::create)
+                    .filter(Objects::nonNull);
+        } catch (Exception e) {
+            logger.error("Ошибка обработки репозитория", e);
             return null;
         }
-
-        var repository = person.getRepository(repoID);
-
-        return getPackage(repository, person);
     }
 
-    static GHPerson getSource(GithubSource source) throws IOException {
-        return getSource(source.type, source.value);
+    static boolean suitableRelease(GHRelease ghRelease, Release lastRelease) {
+        if (ghRelease.isDraft() || ghRelease.isPrerelease())
+            return false;
+
+        return lastRelease == null || lastRelease.getVersion().compareTo(ghRelease.getTagName()) < 0;
+    }
+
+    static Stream<Release> loadReleases(Repository rep, boolean onlyNew) throws IOException {
+        Release lastRelease = onlyNew ? rep.maxRelease() : null;
+        GHRepository repository = getClient().getRepository(rep.getFullName());
+
+        return StreamSupport.stream(repository.listReleases().spliterator(), false)
+                .filter(item -> suitableRelease(item, lastRelease))
+                .map(Release::create);
     }
 
     static GitHub getClient() throws IOException {
@@ -274,12 +193,6 @@ public class GithubIntegration {
 
     }
 
-    static Package getPackage(GHRepository repository, GHPerson source) throws IOException {
-        repository = getMainRepository(repository);
-
-        return new Package(repository);
-    }
-
     static GHRepository getMainRepository(GHRepository repository) throws IOException {
         String fullName = repository.getFullName();
         if (repository.isFork()) {
@@ -294,36 +207,5 @@ public class GithubIntegration {
         }
 
         return repository;
-    }
-
-    static class Package extends io.oscript.hub.api.integration.Package {
-        @JsonIgnore
-        GHRepository repository;
-
-        Package(GHRepository repository) {
-            this.url = repository.getUrl().toString();
-            this.name = repository.getName();
-            this.repository = repository;
-        }
-    }
-
-    static class Version extends io.oscript.hub.api.integration.Version {
-
-        @JsonIgnore
-        GHRelease release;
-
-        public Version(GHRelease release) {
-            super(release.getTagName(), release.getZipballUrl());
-            if (name.startsWith("v"))
-                name = name.substring(1);
-
-            this.release = release;
-            this.url = release.getUrl().toString();
-        }
-
-    }
-
-    static void saveVersionsInfo(List<io.oscript.hub.api.integration.Package> packages) throws IOException {
-        JSON.serialize(packages, Path.of("github-releases.json"));
     }
 }

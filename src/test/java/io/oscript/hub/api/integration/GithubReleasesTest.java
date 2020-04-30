@@ -27,25 +27,8 @@ class GithubReleasesTest {
     }
 
     @Test
-    void packages() throws IOException, InterruptedException {
-        GithubSource source = new GithubSource(GithubSourceType.Organisation, "oscript-library");
-
-        var packages = GithubIntegration.packages(source);
-        System.out.println(packages.size());
-
-        assertThat(packages).extracting("name")
-                .contains("configor")
-                .contains("1bdd")
-                .contains("yaspeller")
-                .contains("yadisk-uploader")
-                .contains("rabbitmq")
-                .contains("onec-repo-converter")
-                .contains("edt-export-bugs");
-    }
-
-    @Test
     void versions() throws IOException {
-        GithubIntegration.init(configuration);
+        GithubIntegration.init();
 
         GithubIntegration.findNewReleases();
 

@@ -1,5 +1,7 @@
 package io.oscript.hub.api.integration;
 
+import java.util.stream.Stream;
+
 public interface PackagesSource {
-    PackageSource nextPackage();
+    Stream<PackageSource> releases();
 }
