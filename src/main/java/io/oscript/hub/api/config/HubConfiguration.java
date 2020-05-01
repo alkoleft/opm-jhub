@@ -40,9 +40,15 @@ public class HubConfiguration {
         }
     }
 
-    public void saveConfiguration(String name, Object configuration) throws IOException {
-        Path path = getSettingsPath().resolve(String.format("%s.json", name));
-        JSON.serialize(configuration, path);
+    public boolean saveConfiguration(String name, Object configuration) {
+        try {
+            Path path = getSettingsPath().resolve(String.format("%s.json", name));
+            JSON.serialize(configuration, path);
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public Path getStorePath() {

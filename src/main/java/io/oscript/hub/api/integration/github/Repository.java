@@ -1,5 +1,7 @@
 package io.oscript.hub.api.integration.github;
 
+import io.oscript.hub.api.integration.PackageBase;
+import io.oscript.hub.api.integration.VersionBase;
 import lombok.Data;
 import org.kohsuke.github.GHRepository;
 
@@ -7,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-public class Repository {
+public class Repository implements PackageBase {
     String fullName;
     String url;
     String packageID;
@@ -17,7 +19,7 @@ public class Repository {
     public static Repository create(GHRepository rep) {
         Repository repository = new Repository();
         try {
-            repository.fullName = GithubIntegration.getMainRepository(rep).getFullName();
+            repository.fullName = rep.getFullName();
             return repository;
         } catch (Exception ignore) {
             return null;
@@ -40,5 +42,15 @@ public class Repository {
         }
 
         return maxRelease;
+    }
+
+    @Override
+    public String getName() {
+        return packageID;
+    }
+
+    @Override
+    public VersionBase[] getVersions() {
+        return releases.toArray(VersionBase[]::new);
     }
 }

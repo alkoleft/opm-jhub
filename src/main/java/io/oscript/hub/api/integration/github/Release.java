@@ -1,8 +1,8 @@
 package io.oscript.hub.api.integration.github;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.oscript.hub.api.integration.PackageSource;
 import io.oscript.hub.api.integration.PackageSourceType;
+import io.oscript.hub.api.integration.VersionBase;
 import io.oscript.hub.api.ospx.OspxPackage;
 import io.oscript.hub.api.utils.Common;
 import lombok.Data;
@@ -13,7 +13,7 @@ import java.io.InputStream;
 import java.util.Date;
 
 @Data
-public class Release implements PackageSource {
+public class Release implements VersionBase {
     Date date;
     String version;
     String tag;
@@ -23,21 +23,6 @@ public class Release implements PackageSource {
 
     @JsonIgnore
     Repository repository;
-
-    public void setTag(String tag) {
-        this.tag = tag;
-        if (version == null) {
-            if (tag.startsWith("v")) {
-                version = tag.substring(1);
-            } else {
-                version = tag;
-            }
-        }
-    }
-
-    public OspxPackage getPackage() {
-        return null;
-    }
 
     public static Release create(GHRelease ghRelease) {
         Release release = new Release();
@@ -60,18 +45,44 @@ public class Release implements PackageSource {
         return release;
     }
 
-    @Override
+    public static String getVersionFormTag(String tagName) {
+        if (tagName.startsWith("v.")) {
+            return tagName.substring(2);
+        } else if (tagName.startsWith("v")) {
+            return tagName.substring(1);
+        } else {
+            return tagName;
+        }
+    }
+
+    public int compareTag(String tag) {
+        if (Common.isNullOrEmpty(this.tag)) {
+            return this.version.compareToIgnoreCase(getVersionFormTag(tag));
+        } else {
+            return this.tag.compareToIgnoreCase(tag);
+        }
+    }
+
+    public void setTag(String tag) {
+        this.tag = tag;
+        if (version == null) {
+            version = getVersionFormTag(tag);
+        }
+    }
+
+    @JsonIgnore
+    public OspxPackage getPackage() {
+        return null;
+    }
+
     public PackageSourceType getType() {
         return Common.isNullOrEmpty(packageUrl) ? PackageSourceType.ZipSource : PackageSourceType.BinaryPackage;
     }
 
-    @Override
-    @JsonIgnore
     public String getPackageID() {
         return repository.getPackageID();
     }
 
-    @Override
     public InputStream getStream() {
         return null;
     }

@@ -12,20 +12,20 @@ class MirrorTest {
     void collectInfo() {
     }
 
-    @Test
-    void packages() throws IOException, InterruptedException {
-        var packages = ClassicHubIntegration.packages("https://hub.oscript.io");
-
-        assertThat(packages)
-                .contains("configor")
-                .contains("1bdd")
-                .contains("Yaspeller")
-                .contains("yadisk-uploader")
-                .contains("RabbitMQ")
-                .contains("ParserFileV8i")
-                .contains("onec-repo-converter")
-                .contains("edt-export-bugs");
-    }
+//    @Test
+//    void packages() throws IOException, InterruptedException {
+//        var packages = ClassicHubIntegration.packages("https://hub.oscript.io");
+//
+//        assertThat(packages)
+//                .contains("configor")
+//                .contains("1bdd")
+//                .contains("Yaspeller")
+//                .contains("yadisk-uploader")
+//                .contains("RabbitMQ")
+//                .contains("ParserFileV8i")
+//                .contains("onec-repo-converter")
+//                .contains("edt-export-bugs");
+//    }
 
     @Test
     void versions() {

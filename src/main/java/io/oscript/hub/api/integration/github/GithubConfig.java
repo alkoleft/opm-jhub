@@ -6,12 +6,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-public class CollectRepositoriesConfig {
+public class GithubConfig {
 
+    String token;
+    boolean collectPreReleases;
+    ForkStrategy ifFork;
     List<String> organizations = new ArrayList<>();
     List<String> users = new ArrayList<>();
     List<String> repositories = new ArrayList<>();
 
-    public CollectRepositoriesConfig() {
+    public GithubConfig() {
     }
 }

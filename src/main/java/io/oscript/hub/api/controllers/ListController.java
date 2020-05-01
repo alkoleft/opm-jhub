@@ -1,7 +1,6 @@
 package io.oscript.hub.api.controllers;
 
 import io.oscript.hub.api.data.Package;
-import io.oscript.hub.api.data.PackageInfo;
 import io.oscript.hub.api.response.Response;
 import io.oscript.hub.api.utils.Constants;
 import org.slf4j.Logger;

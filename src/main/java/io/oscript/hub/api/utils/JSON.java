@@ -17,7 +17,7 @@ public class JSON {
     static final Logger logger = LoggerFactory.getLogger(JSON.class);
 
     static ObjectMapper mapper() {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
         mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
 
         return mapper;

@@ -1,94 +1,155 @@
 package io.oscript.hub.api.integration.classicopmhub;
 
+import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.controllers.ListController;
+import io.oscript.hub.api.integration.PackageBase;
+import io.oscript.hub.api.integration.PackagesSource;
+import io.oscript.hub.api.utils.HttpRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-public class ClassicHubIntegration {
+@Service
+public class ClassicHubIntegration implements PackagesSource {
 
     static final Logger logger = LoggerFactory.getLogger(ListController.class);
 
-    public static void collectInfo(String serverURL) throws IOException, InterruptedException {
+    ClassicHubConfiguration configuration = new ClassicHubConfiguration();
 
-        String[] packages = packages(serverURL);
+    private List<Package> packages = new ArrayList<>();
+    private List<Version> versions = new ArrayList<>();
 
-        if (packages == null)
-            return;
+    @Autowired
+    HubConfiguration appConfiguration;
 
-        for (String packageName : packages) {
-            Package aPackage = new Package();
-            aPackage.name = packageName;
+    @Override
+    public void sync() {
+        var packagesStream = configuration.getServers()
+                .stream()
+                .map(this::loadPackageIDs)
+                .reduce(Stream::concat)
+                .orElseGet(Stream::empty)
+                .collect(Collectors.toSet());
 
-            versions(aPackage, serverURL);
+        packages.clear();
+        packagesStream.forEach(s -> packages.add(new Package(s)));
+        packages.forEach(aPackage -> {
+            var loadedVersions = loadVersion(aPackage);
+            versions.addAll(loadedVersions);
+            aPackage.versions.addAll(loadedVersions);
+        });
+
+        if (!appConfiguration.saveConfiguration("opm-hub-packages", packages)) {
+            logger.error("Не удалось сохранить список пакетов opm-hub");
         }
     }
 
-    public static String[] packages(String serverURL) throws IOException, InterruptedException {
-        String response = request(serverURL, "download/list.txt", "Получение списка пакетов с хаба");
-
-        return response == null ? null : Arrays.stream(response.split("\n")).map(String::trim).toArray(String[]::new);
+    @Override
+    public PackageBase[] getPackages() {
+        return packages.toArray(PackageBase[]::new);
     }
 
-    public static List<Version> versions(Package aPackage, String serverURL) throws IOException, InterruptedException {
-        String resource = String.format("package/%s", aPackage.name);
+    public List<Version> getVersions() {
+        return versions;
+    }
 
-        String response = request(serverURL, resource, "Получение списка версий с хаба");
+    Stream<String> loadPackageIDs(String server) {
+        try {
+            String description = "Получение списка пакетов";
 
-        Pattern versionsPattern = Pattern.compile("<a.+download\\/(.+)\\/\\1-(.+)\\.ospx\">\\2<\\/a>");
+            var stream = HttpRequest.request(URI.create(String.format("%s/download/list.txt", server)), description, HttpResponse.BodyHandlers.ofLines());
+            if (stream == null) {
+                return Stream.empty();
+            }
 
-        var matcher = versionsPattern.matcher(response);
+            return stream;
+
+        } catch (Exception e) {
+            logger.error(String.format("Ошибка получения списка пакетов с %s", server), e);
+            return Stream.empty();
+        }
+    }
+
+    List<Version> loadVersion(Package pack) {
+        List<Version> versions = new ArrayList<>();
+        Set<String> versionKeys = new HashSet<>();
+
+        for (String server : configuration.getServers()) {
+            try {
+                Stream.concat(versions(pack, server).stream(), versionsFromDownload(pack, server).stream())
+                        .forEach(item -> {
+                            if (!versionKeys.contains(item)) {
+                                versionKeys.add(item);
+                                versions.add(new Version(item, server, pack.getName()));
+                            }
+                        });
+
+            } catch (Exception e) {
+                logger.error("Ошибка получения списка версий с хаба", e);
+            }
+        }
+
+        return versions;
+    }
+
+    static List<String> versions(Package pack, String serverURL) throws IOException, InterruptedException {
+
+        return parseVersions(
+                String.format("%s/package/%s", serverURL, pack.name),
+                Pattern.compile("<a.+download\\/(.+)\\/\\1-(.+)\\.ospx\">\\2<\\/a>"),
+                pack.name);
+    }
+
+    static List<String> versionsFromDownload(Package pack, String serverURL) throws IOException, InterruptedException {
+
+        return parseVersions(
+                String.format("%s/download/%s", serverURL, pack.name),
+                Pattern.compile(">(.+)-(.+)\\.ospx<\\/a>"),
+                pack.name);
+    }
+
+    static List<String> parseVersions(String url, Pattern pattern, String packageName) {
+        logger.debug("Получение списка версий {}", url);
+
+        List<String> versions = new ArrayList<>();
+
+        String response = null;
+        try {
+            response = HttpRequest.request(url, "Получение списка версий (download/) с хаба");
+        } catch (Exception ignored) {
+        }
+
+        if (response == null) {
+            logger.error("Не удалось получить список версий {}", url);
+            return versions;
+        }
+
+        var matcher = pattern.matcher(response);
 
         while (matcher.find()) {
-            aPackage.versions.add(new Version(matcher.group(0), matcher.group(1)));
-        }
-        return aPackage.versions;
-    }
+            String packName = matcher.group(1);
+            String version = matcher.group(2);
 
-    static String request(String serverURL, String resource, String description) throws IOException, InterruptedException {
-        String requestUri = String.format("%s/%s", serverURL, resource);
-
-        var request = HttpRequest.newBuilder()
-                .GET()
-                .uri(URI.create(requestUri))
-                .setHeader("channel", "stable")
-                .build();
-
-        HttpClient httpClient = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_2)
-                .build();
-
-        var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() != 200) {
-            logger.error("Ошибка операции {}. Код ответа {}\nОтвет:{}", description, response.statusCode(), response.body());
-            return null;
+            if (!packageName.equalsIgnoreCase(packName)) {
+                logger.error("Обработка {}. Ссылка на версию имеет другое имя пакета. {}@{}", packageName, packName, version);
+                continue;
+            }
+            versions.add(version);
         }
 
-        return response.body();
+        return versions;
     }
 
-    static class Package {
-        String name;
-        List<Version> versions = new ArrayList<>();
-    }
-
-    static class Version {
-        String name;
-        String downloadURL;
-
-        Version(String name, String downloadURL) {
-            this.name = name;
-            this.downloadURL = downloadURL;
-        }
-    }
 }
