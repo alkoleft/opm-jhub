@@ -1,9 +1,9 @@
 package io.oscript.hub.api.controllers;
 
-import io.oscript.hub.api.data.IPackageMetadata;
-import io.oscript.hub.api.data.Package;
 import io.oscript.hub.api.data.RequestParameters;
 import io.oscript.hub.api.response.Response;
+import io.oscript.hub.api.storage.StoredPackageInfo;
+import io.oscript.hub.api.storage.StoredVersionInfo;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,7 +23,7 @@ public class CompatibilityController extends BaseController {
         String body = store
                 .getPackages(parameters.getChannel())
                 .stream()
-                .map(Package::getName)
+                .map(StoredPackageInfo::getName)
                 .collect(Collectors.joining("\n"));
 
         return getFileResponse("list.txt", body);
@@ -46,9 +46,9 @@ public class CompatibilityController extends BaseController {
                 version = "latest";
             }
 
-            IPackageMetadata metadata = store.getVersion(name, version, parameters.getChannel());
+            StoredVersionInfo versionInfo = store.getVersion(name, version, parameters.getChannel());
 
-            var data = store.getPackageData(metadata, parameters.getChannel());
+            var data = store.getPackageData(versionInfo.getMetadata(), parameters.getChannel());
 
             return getFileResponse(filename, data);
         }

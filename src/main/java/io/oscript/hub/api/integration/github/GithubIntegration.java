@@ -1,7 +1,6 @@
 package io.oscript.hub.api.integration.github;
 
 import io.oscript.hub.api.config.HubConfiguration;
-import io.oscript.hub.api.integration.PackageBase;
 import io.oscript.hub.api.integration.PackagesSource;
 import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.JSON;
@@ -69,11 +68,6 @@ public class GithubIntegration implements PackagesSource {
         findNewRepositories();
         findNewReleases();
         logger.info("Синхронизация с Github завершилась успешно");
-    }
-
-    @Override
-    public PackageBase[] getPackages() {
-        return repositories.toArray(PackageBase[]::new);
     }
 
     public List<Repository> getRepositories() {

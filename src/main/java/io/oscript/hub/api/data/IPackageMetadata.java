@@ -1,14 +1,10 @@
 package io.oscript.hub.api.data;
 
-import io.oscript.hub.api.ospx.Metadata;
+import io.oscript.hub.api.ospx.DependenceInfo;
 
 import java.util.List;
 
-public interface IPackageMetadata {
-    String getName();
-
-    String getVersion();
-
+public interface IPackageMetadata extends VersionInfo {
     String getEngineVersion();
 
     String getAuthor();
@@ -17,5 +13,5 @@ public interface IPackageMetadata {
 
     String getDescription();
 
-    List<Metadata.DependenceInfo> getDependencies();
+    List<DependenceInfo> getDependencies();
 }

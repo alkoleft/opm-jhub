@@ -10,6 +10,7 @@ public class GithubConfig {
 
     String token;
     boolean collectPreReleases;
+    String channel = "github";
     ForkStrategy ifFork;
     List<String> organizations = new ArrayList<>();
     List<String> users = new ArrayList<>();

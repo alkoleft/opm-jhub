@@ -2,7 +2,7 @@ package io.oscript.hub.api.integration;
 
 import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.integration.github.GithubIntegration;
-import io.oscript.hub.api.services.FileSystemStore;
+import io.oscript.hub.api.storage.FileSystemStore;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 

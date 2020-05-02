@@ -1,20 +1,22 @@
-package io.oscript.hub.api.data;
+package io.oscript.hub.api.storage;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.oscript.hub.api.integration.github.Repository;
+import io.oscript.hub.api.integration.VersionSourceInfo;
 import lombok.Data;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Data
-public class Package {
+public class StoredPackageInfo {
     String name;
     String description;
     String version;
 
+    VersionSourceInfo source;
+
     @JsonIgnore
-    List<Repository> repositories = new ArrayList<>();
+    Metadata metadata;
 
     @JsonIgnore
     List<String> versions = new ArrayList<>();

@@ -1,7 +1,8 @@
 package io.oscript.hub.api.controllers;
 
-import io.oscript.hub.api.data.Package;
 import io.oscript.hub.api.response.Response;
+import io.oscript.hub.api.storage.StoredPackageInfo;
+import io.oscript.hub.api.storage.StoredVersionInfo;
 import io.oscript.hub.api.utils.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +28,7 @@ public class ListController extends BaseController {
     static final Logger logger = LoggerFactory.getLogger(ListController.class);
 
     @GetMapping("packages")
-    public ResponseEntity<List<Package>> packageList() throws IOException {
+    public ResponseEntity<List<StoredPackageInfo>> packageList() throws IOException {
         var body = store.getPackages(Constants.defaultChannel);
 
         return ResponseEntity
@@ -37,8 +38,64 @@ public class ListController extends BaseController {
     }
 
     @GetMapping("packages/{name}")
-    public ResponseEntity<Package> packageInfo(@PathVariable("name") String packageName) {
+    public ResponseEntity<StoredPackageInfo> packageInfo(@PathVariable("name") String packageName) {
         var body = store.getPackage(packageName, Constants.defaultChannel);
+
+        if (body != null) {
+            return ResponseEntity
+                    .ok()
+                    .body(body);
+        } else {
+            return ResponseEntity
+                    .notFound()
+                    .build();
+        }
+    }
+
+    @GetMapping("packages/{name}/{version}")
+    public ResponseEntity<StoredVersionInfo> packageVersionInfo(@PathVariable("name")
+                                                                        String packageName,
+                                                                @PathVariable("version")
+                                                                        String version) {
+        var body = store.getVersion(packageName, version, Constants.defaultChannel);
+
+        if (body != null) {
+            return ResponseEntity
+                    .ok()
+                    .body(body);
+        } else {
+            return ResponseEntity
+                    .notFound()
+                    .build();
+        }
+    }
+
+    @GetMapping("channels/{channel}/{name}")
+    public ResponseEntity<StoredPackageInfo> packageInfo(@PathVariable("channel")
+                                                                 String channel,
+                                                         @PathVariable("name")
+                                                                 String packageName) {
+        var body = store.getPackage(packageName, channel);
+
+        if (body != null) {
+            return ResponseEntity
+                    .ok()
+                    .body(body);
+        } else {
+            return ResponseEntity
+                    .notFound()
+                    .build();
+        }
+    }
+
+    @GetMapping("channels/{channel}/{name}/{version}")
+    public ResponseEntity<StoredVersionInfo> packageVersionInfo(@PathVariable("channel")
+                                                                        String channel,
+                                                                @PathVariable("name")
+                                                                        String packageName,
+                                                                @PathVariable("version")
+                                                                        String version) {
+        var body = store.getVersion(packageName, version, channel);
 
         if (body != null) {
             return ResponseEntity

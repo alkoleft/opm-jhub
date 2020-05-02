@@ -1,13 +1,12 @@
 package io.oscript.hub.api.integration.classicopmhub;
 
-import io.oscript.hub.api.integration.PackageBase;
 import lombok.Data;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Data
-public class Package implements PackageBase {
+public class Package {
     String name;
     List<Version> versions = new ArrayList<>();
 

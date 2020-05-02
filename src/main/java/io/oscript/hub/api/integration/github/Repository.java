@@ -1,6 +1,5 @@
 package io.oscript.hub.api.integration.github;
 
-import io.oscript.hub.api.integration.PackageBase;
 import io.oscript.hub.api.integration.VersionBase;
 import lombok.Data;
 import org.kohsuke.github.GHRepository;
@@ -9,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-public class Repository implements PackageBase {
+public class Repository {
     String fullName;
     String url;
     String packageID;
@@ -42,15 +41,5 @@ public class Repository implements PackageBase {
         }
 
         return maxRelease;
-    }
-
-    @Override
-    public String getName() {
-        return packageID;
-    }
-
-    @Override
-    public VersionBase[] getVersions() {
-        return releases.toArray(VersionBase[]::new);
     }
 }

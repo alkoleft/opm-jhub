@@ -3,7 +3,7 @@ package io.oscript.hub.api.controllers;
 import io.oscript.hub.api.data.RequestParameters;
 import io.oscript.hub.api.response.ErrorResponse;
 import io.oscript.hub.api.response.Response;
-import io.oscript.hub.api.services.IStore;
+import io.oscript.hub.api.storage.IStore;
 import io.oscript.hub.api.services.Saver;
 import io.oscript.hub.api.utils.Common;
 import org.springframework.beans.factory.annotation.Autowired;

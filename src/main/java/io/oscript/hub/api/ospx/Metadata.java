@@ -8,7 +8,6 @@ import lombok.Data;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlType;
 import java.util.ArrayList;
@@ -45,16 +44,6 @@ public class Metadata implements IPackageMetadata {
     @JsonSetter
     public void setDependencies(DependenceInfo card) {
         this.dependencies.add(card);
-    }
-
-    @Data
-    public static class DependenceInfo {
-        @XmlAttribute(name = "name")
-        String name;
-
-        @XmlAttribute(name = "version")
-        String version;
-
     }
 }
 

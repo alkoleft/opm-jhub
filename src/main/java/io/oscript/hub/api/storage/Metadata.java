@@ -1,5 +1,7 @@
-package io.oscript.hub.api.data;
+package io.oscript.hub.api.storage;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import io.oscript.hub.api.data.IPackageMetadata;
 import io.oscript.hub.api.ospx.DependenceInfo;
 import lombok.Data;
 
@@ -7,7 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-public class PackageInfo implements IPackageMetadata {
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class Metadata implements IPackageMetadata {
 
     String name;
 
@@ -22,11 +25,4 @@ public class PackageInfo implements IPackageMetadata {
     String description;
 
     List<DependenceInfo> dependencies = new ArrayList<>();
-
-    public PackageInfo() {
-    }
-
-    public PackageInfo(String name) {
-        this.name = name;
-    }
 }
