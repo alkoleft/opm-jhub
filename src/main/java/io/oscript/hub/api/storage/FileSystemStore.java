@@ -102,6 +102,7 @@ public class FileSystemStore implements IStore {
 
     // endregion Packages
 
+    //region Versions
     @Override
     public StoredVersionInfo getVersion(String packageName, String version, String channel) {
         if (Common.isNullOrEmpty(version) || version.equalsIgnoreCase("latest")) {
@@ -113,6 +114,35 @@ public class FileSystemStore implements IStore {
             return null;
         return Objects.requireNonNull(JSON.deserialize(path, StoredVersionInfo.class));
     }
+
+    @Override
+    public List<StoredVersionInfo> getVersions(String packageName) {
+
+        return loadVersions(packageName, Constants.defaultChannel);
+    }
+
+    @Override
+    public List<StoredVersionInfo> getVersions(String packageName, String channel) {
+
+        return loadVersions(packageName, channel);
+    }
+
+    protected List<StoredVersionInfo> loadVersions(String packageName, String channel) {
+        Path path = getPackagePath(packageName, channel);
+        try {
+            return Files.list(path)
+                    .filter(item -> Files.isDirectory(path)
+                            && !Files.isSymbolicLink(path)
+                            && Files.exists(item.resolve(Constants.metadataFile)))
+                    .sorted()
+                    .map(item -> JSON.deserialize(item.resolve(Constants.metadataFile), StoredVersionInfo.class))
+                    .collect(Collectors.toList());
+        } catch (IOException ex) {
+            return new ArrayList<>();
+        }
+    }
+
+    //endregion
 
     @Override
     public boolean savePackage(OspxPackage ospxPackage, String channel) {
@@ -132,22 +162,6 @@ public class FileSystemStore implements IStore {
         Path file = path.resolve(Common.packageFileName(metadata));
 
         return Files.readAllBytes(file);
-    }
-
-
-    protected List<StoredVersionInfo> loadVersions(String packageName, String channel) {
-        Path path = getPackagePath(packageName, channel);
-        try {
-            return Files.list(path)
-                    .filter(item -> Files.isDirectory(path)
-                            && !Files.isSymbolicLink(path)
-                            && Files.exists(item.resolve(Constants.metadataFile)))
-                    .sorted()
-                    .map(item -> JSON.deserialize(item.resolve(Constants.metadataFile), StoredVersionInfo.class))
-                    .collect(Collectors.toList());
-        } catch (IOException ex) {
-            return new ArrayList<>();
-        }
     }
 
     public boolean containsVersion(String packageID, String version) {

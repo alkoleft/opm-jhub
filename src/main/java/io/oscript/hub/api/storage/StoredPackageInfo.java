@@ -1,7 +1,6 @@
 package io.oscript.hub.api.storage;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.oscript.hub.api.integration.VersionSourceInfo;
 import lombok.Data;
 
 import java.util.ArrayList;
@@ -12,8 +11,6 @@ public class StoredPackageInfo {
     String name;
     String description;
     String version;
-
-    VersionSourceInfo source;
 
     @JsonIgnore
     Metadata metadata;

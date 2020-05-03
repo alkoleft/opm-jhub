@@ -5,6 +5,7 @@ import io.oscript.hub.api.ospx.OspxPackage;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Stream;
 
 public interface IStore {
     //region Channels
@@ -41,5 +42,9 @@ public interface IStore {
     boolean containsVersion(String packageID, String version, String channel);
 
     boolean containsVersion(String packageID, String version);
+
+    List<StoredVersionInfo> getVersions(String packageName);
+
+    List<StoredVersionInfo> getVersions(String packageName, String channel);
 }
 

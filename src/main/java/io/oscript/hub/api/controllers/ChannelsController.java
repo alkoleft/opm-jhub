@@ -57,6 +57,25 @@ public class ChannelsController extends BaseController {
         }
     }
 
+    @GetMapping("{channel}/{name}/versions")
+    public ResponseEntity<List<StoredVersionInfo>> versions(@PathVariable("channel")
+                                                                    String channel,
+                                                            @PathVariable("name")
+                                                                    String packageName) {
+        var body = store.getVersions(packageName, channel);
+
+        if (body != null) {
+            return ResponseEntity
+                    .ok()
+                    .body(body);
+        } else {
+            return ResponseEntity
+                    .notFound()
+                    .build();
+        }
+
+    }
+
     @GetMapping("{channel}/{name}/{version}")
     public ResponseEntity<StoredVersionInfo> packageVersionInfo(@PathVariable("channel")
                                                                         String channel,

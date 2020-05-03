@@ -52,6 +52,21 @@ public class PackagesController extends BaseController {
         }
     }
 
+    @GetMapping("packages/{name}/versions")
+    public ResponseEntity<List<StoredVersionInfo>> versions(@PathVariable("name") String packageName) {
+        var body = store.getVersions(packageName);
+
+        if (body != null) {
+            return ResponseEntity
+                    .ok()
+                    .body(body);
+        } else {
+            return ResponseEntity
+                    .notFound()
+                    .build();
+        }
+    }
+
     @GetMapping("packages/{name}/{version}")
     public ResponseEntity<StoredVersionInfo> packageVersionInfo(@PathVariable("name")
                                                                         String packageName,
