@@ -1,7 +1,7 @@
 package io.oscript.hub.api.integration.classicopmhub;
 
 import io.oscript.hub.api.config.HubConfiguration;
-import io.oscript.hub.api.controllers.ListController;
+import io.oscript.hub.api.controllers.PackagesController;
 import io.oscript.hub.api.integration.PackagesSource;
 import io.oscript.hub.api.integration.VersionSourceInfo;
 import io.oscript.hub.api.integration.VersionSourceType;
@@ -9,11 +9,13 @@ import io.oscript.hub.api.ospx.OspxPackage;
 import io.oscript.hub.api.storage.IStore;
 import io.oscript.hub.api.storage.SavingPackage;
 import io.oscript.hub.api.utils.HttpRequest;
+import io.oscript.hub.api.utils.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpResponse;
@@ -29,23 +31,46 @@ import java.util.stream.Stream;
 @Service
 public class ClassicHubIntegration implements PackagesSource {
 
-    static final Logger logger = LoggerFactory.getLogger(ListController.class);
+    static final Logger logger = LoggerFactory.getLogger(PackagesController.class);
 
-    ClassicHubConfiguration configuration = new ClassicHubConfiguration();
+    ClassicHubConfiguration config = new ClassicHubConfiguration();
 
     private List<Package> packages = new ArrayList<>();
     private List<Version> versions = new ArrayList<>();
 
     @Autowired
-    HubConfiguration appConfiguration;
+    HubConfiguration appConfig;
 
     @Autowired
     IStore store;
 
+    @PostConstruct
+    void init() {
+        String description = "Загрузка настроек интеграции с opm hub";
+        logger.info(description);
+
+        try {
+            var stream = appConfig.getConfiguration("opm-hub-mirror");
+            if (stream == null) {
+                config = ClassicHubConfiguration.defaultConfiguration();
+                appConfig.saveConfiguration("opm-hub-mirror", config);
+            } else {
+                config = JSON.deserialize(stream, ClassicHubConfiguration.class);
+                stream.close();
+            }
+
+            store.channelRegistration(config.channel);
+
+            logger.info(description, JSON.serialize(config));
+        } catch (Exception e) {
+            logger.error("Ошибка операции: " + description, e);
+        }
+    }
+
     @Override
     public void sync() {
         logger.info("Получение списка зарегистрированных пакетов");
-        var packagesStream = configuration.getServers()
+        var packagesStream = config.getServers()
                 .stream()
                 .map(this::loadPackageIDs)
                 .reduce(Stream::concat)
@@ -62,7 +87,7 @@ public class ClassicHubIntegration implements PackagesSource {
             aPackage.versions.addAll(loadedVersions);
         });
 
-        if (!appConfiguration.saveConfiguration("opm-hub-packages", packages)) {
+        if (!appConfig.saveConfiguration("opm-hub-packages", packages)) {
             logger.error("Не удалось сохранить список пакетов opm-hub");
         }
 
@@ -71,11 +96,22 @@ public class ClassicHubIntegration implements PackagesSource {
     }
 
     public void downloadPackages() {
+        logger.info("Загрузка версий пакетов");
         getVersions().stream()
-                .filter(version -> !store.containsVersion(version.packageID, version.version, configuration.channel))
+                .filter(version -> !store.containsVersion(version.packageID, version.version, config.channel))
                 .map(this::downloadVersion)
                 .filter(Objects::nonNull)
                 .forEach(store::savePackage);
+        logger.info("Загрузка пакетов, которые не содержат версий");
+        packages.stream()
+                .filter(aPackage -> aPackage.versions.size() == 0)
+                .map(this::downloadLastVersions)
+                .reduce(Stream::concat)
+                .orElseGet(Stream::empty)
+                .filter(Objects::nonNull)
+                .filter(savingPackage -> !store.containsVersion(savingPackage.getName(), savingPackage.getVersion(), savingPackage.getChannel()))
+                .forEach(store::savePackage);
+
     }
 
     public List<Version> getVersions() {
@@ -84,7 +120,7 @@ public class ClassicHubIntegration implements PackagesSource {
 
     SavingPackage downloadVersion(Version version) {
         byte[] data;
-        for (String server : configuration.getServers()) {
+        for (String server : config.getServers()) {
             try {
                 URI downloadURL = downloadURL(server, version);
                 data = HttpRequest.download(downloadURL);
@@ -95,7 +131,7 @@ public class ClassicHubIntegration implements PackagesSource {
                     sourceInfo.setPackageURL(packageURL(server, version).toString());
                     sourceInfo.setVersionURL(downloadURL.toString());
 
-                    return new SavingPackage(OspxPackage.parse(data), sourceInfo, configuration.channel);
+                    return new SavingPackage(OspxPackage.parse(data), sourceInfo, config.channel);
                 }
             } catch (Exception ignored) {
             }
@@ -104,12 +140,43 @@ public class ClassicHubIntegration implements PackagesSource {
         return null;
     }
 
+    Stream<SavingPackage> downloadLastVersions(Package pack) {
+        byte[] data;
+        List<SavingPackage> packages = new ArrayList<>();
+        for (String server : config.getServers()) {
+            try {
+                URI downloadURL = downloadURL(server, pack);
+                data = HttpRequest.download(downloadURL);
+                if (data != null) {
+                    VersionSourceInfo sourceInfo = new VersionSourceInfo();
+
+                    sourceInfo.setType(VersionSourceType.OPM_HUB);
+                    sourceInfo.setPackageURL(packageURL(server, pack).toString());
+                    sourceInfo.setVersionURL(downloadURL.toString());
+
+                    packages.add(new SavingPackage(OspxPackage.parse(data), sourceInfo, config.channel));
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        return packages.stream();
+    }
+
     URI downloadURL(String server, Version version) {
         return URI.create(String.format("%s/download/%s/%s-%s.ospx", server, version.packageID, version.packageID, version.version));
     }
 
+    URI downloadURL(String server, Package pack) {
+        return URI.create(String.format("%s/download/%s/%s.ospx", server, pack.name, pack.name));
+    }
+
     URI packageURL(String server, Version version) {
         return URI.create(String.format("%s/package/%s", server, version.packageID));
+    }
+
+    URI packageURL(String server, Package pack) {
+        return URI.create(String.format("%s/package/%s", server, pack.name));
     }
 
     Stream<String> loadPackageIDs(String server) {
@@ -133,7 +200,7 @@ public class ClassicHubIntegration implements PackagesSource {
         List<Version> versions = new ArrayList<>();
         Set<String> versionKeys = new HashSet<>();
 
-        for (String server : configuration.getServers()) {
+        for (String server : config.getServers()) {
             try {
                 Stream.concat(versions(pack, server).stream(), versionsFromDownload(pack, server).stream())
                         .forEach(item -> {

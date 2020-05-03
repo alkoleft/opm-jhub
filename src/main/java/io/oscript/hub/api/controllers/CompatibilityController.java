@@ -20,9 +20,13 @@ public class CompatibilityController extends BaseController {
     @GetMapping("download/list.txt")
     public ResponseEntity<String> packageListTXT(@RequestHeader HttpHeaders headers) throws IOException {
         RequestParameters parameters = getRequestParameters(headers);
-        String body = store
-                .getPackages(parameters.getChannel())
-                .stream()
+        var packages = store.getPackages(parameters.getChannel());
+        if (packages == null) {
+            return ResponseEntity
+                    .notFound()
+                    .build();
+        }
+        String body = packages.stream()
                 .map(StoredPackageInfo::getName)
                 .collect(Collectors.joining("\n"));
 

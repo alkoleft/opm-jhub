@@ -22,10 +22,15 @@ public class HubConfiguration {
         this.workPath = workPath;
     }
 
-    public Path getSettingsPath() throws IOException {
+    public Path getSettingsPath() {
         Path path = getWorkPath().resolve("settings");
         if (Files.notExists(path)) {
-            Files.createDirectories(path);
+
+            try {
+                Files.createDirectories(path);
+            } catch (IOException ignored) {
+            }
+
         }
 
         return path;

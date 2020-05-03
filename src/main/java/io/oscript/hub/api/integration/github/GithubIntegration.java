@@ -2,6 +2,7 @@ package io.oscript.hub.api.integration.github;
 
 import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.integration.PackagesSource;
+import io.oscript.hub.api.storage.IStore;
 import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.JSON;
 import org.kohsuke.github.GHPerson;
@@ -27,11 +28,10 @@ public class GithubIntegration implements PackagesSource {
     static GitHub client;
 
     @Autowired
-    HubConfiguration configuration;
+    IStore store;
 
-    public GithubIntegration() {
-        logger.warn("СОЗДАН НОВЫЙ ЭКЗЕМПЛЯР ИНТЕГРАТОРА GITHUB");
-    }
+    @Autowired
+    HubConfiguration appConfig;
 
     GithubConfig config;
     List<Repository> repositories;
@@ -39,7 +39,7 @@ public class GithubIntegration implements PackagesSource {
     @PostConstruct
     public void init() throws IOException {
         logger.info("Загрузка настроек");
-        var stream = configuration.getConfiguration("github");
+        var stream = appConfig.getConfiguration("github");
         if (stream == null) {
             config = new GithubConfig();
         } else {
@@ -47,9 +47,11 @@ public class GithubIntegration implements PackagesSource {
             stream.close();
         }
 
-        logger.info("Загружен настройки {}", JSON.serialize(config));
+        store.channelRegistration(config.channel);
 
-        stream = configuration.getConfiguration("repositories");
+        logger.info("Загружены настройки {}", JSON.serialize(config));
+
+        stream = appConfig.getConfiguration("repositories");
         if (stream == null) {
             repositories = new ArrayList<>();
         } else {
@@ -136,7 +138,7 @@ public class GithubIntegration implements PackagesSource {
     }
 
     private boolean saveRepositories() {
-        return configuration.saveConfiguration("repositories", repositories);
+        return appConfig.saveConfiguration("repositories", repositories);
     }
 
     private Stream<Repository> findNewRepositories(GHPerson person) {

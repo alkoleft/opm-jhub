@@ -22,6 +22,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class FileSystemStore implements IStore {
 
@@ -31,21 +32,75 @@ public class FileSystemStore implements IStore {
     public HubConfiguration configuration;
 
     List<StoredPackageInfo> packages;
+    List<Channel> channels;
 
     @PostConstruct
     public void init() {
         loadPackages();
+
+        loadStoredChannels();
+    }
+
+    // region Channels
+    @Override
+    public List<Channel> getChannels() {
+        return channels;
     }
 
     @Override
-    public List<StoredPackageInfo> getPackages(String channel) {
+    public Channel getChannel(String name) {
+        return channels.stream()
+                .filter(channel -> channel.name.equalsIgnoreCase(name))
+                .findFirst()
+                .orElse(null);
+    }
+
+    @Override
+    public Channel channelRegistration(String name) {
+        return channelRegistration(new Channel(name, false));
+    }
+
+    @Override
+    public Channel channelRegistration(Channel channel) {
+        Channel result;
+        if (null == (result = getChannel(channel.name))) {
+            channels.add(result = channel);
+
+            updateStoredChannels();
+
+            collectChannelPackages(channel);
+        }
+        return result;
+    }
+
+    // endregion Channels
+
+    // region Packages
+
+    public List<StoredPackageInfo> getPackages() {
         return packages;
+    }
+
+    public StoredPackageInfo getPackage(String packageName) {
+        if (Common.isNullOrEmpty(packageName))
+            return null;
+        return packages.stream().filter(item -> item.getName().equalsIgnoreCase(packageName)).findFirst().orElse(null);
+    }
+
+    @Override
+    public List<StoredPackageInfo> getPackages(String channelName) {
+        var channel = getChannel(channelName);
+        if (channel == null)
+            return null;
+        return channel.packages;
     }
 
     @Override
     public StoredPackageInfo getPackage(String packageName, String channel) {
         return getPackage(packageName);
     }
+
+    // endregion Packages
 
     @Override
     public StoredVersionInfo getVersion(String packageName, String version, String channel) {
@@ -79,54 +134,6 @@ public class FileSystemStore implements IStore {
         return Files.readAllBytes(file);
     }
 
-    public StoredPackageInfo getPackage(String packageName) {
-        if (Common.isNullOrEmpty(packageName))
-            return null;
-        return packages.stream().filter(item -> item.getName().equalsIgnoreCase(packageName)).findFirst().orElse(null);
-    }
-
-    protected Path getWorkPath() {
-        return configuration.getStorePath();
-    }
-
-    protected Path getPackagesInfoPath() {
-        try {
-            Path path = configuration.getSettingsPath().resolve("packages");
-            if (Files.notExists(path)) {
-                Files.createDirectories(path);
-            }
-            return path;
-        } catch (Exception ignore) {
-        }
-
-        return null;
-    }
-
-    protected Path getChannelPath(String channel) {
-        return getWorkPath()
-                .resolve(channel);
-    }
-
-    protected Path getPackagePath(PackageInfo packageInfo, String channel) {
-        return getPackagePath(packageInfo.getName(), channel);
-    }
-
-    protected Path getPackagePath(String packageName, String channel) {
-        return getWorkPath()
-                .resolve(channel)
-                .resolve(packageName);
-    }
-
-    protected Path getVersionPath(IPackageMetadata packageInfo, String channel) {
-        return getVersionPath(packageInfo.getName(), packageInfo.getVersion(), channel);
-    }
-
-    protected Path getVersionPath(String packageName, String version, String channel) {
-        return getWorkPath()
-                .resolve(channel)
-                .resolve(packageName)
-                .resolve(version);
-    }
 
     protected List<StoredVersionInfo> loadVersions(String packageName, String channel) {
         Path path = getPackagePath(packageName, channel);
@@ -141,28 +148,6 @@ public class FileSystemStore implements IStore {
         } catch (IOException ex) {
             return new ArrayList<>();
         }
-    }
-
-    public List<StoredPackageInfo> loadPackages() {
-        if (packages == null) {
-            packages = new ArrayList<>();
-            try {
-                Files.list(getPackagesInfoPath()).forEach(file -> {
-                            packages.add(JSON.deserialize(file, StoredPackageInfo.class));
-                        }
-                );
-
-            } catch (Exception e) {
-                logger.error("Ошибка загрузки списка пакетов", e);
-            }
-        }
-
-        for (var pack : packages) {
-            loadVersions(pack.getName(), Constants.defaultChannel).forEach(item -> {
-                pack.getVersions().add(item.getMetadata().getVersion());
-            });
-        }
-        return packages;
     }
 
     public boolean containsVersion(String packageID, String version) {
@@ -264,5 +249,130 @@ public class FileSystemStore implements IStore {
         }
     }
 
+    public List<StoredPackageInfo> loadPackages() {
+        if (packages == null) {
+            packages = new ArrayList<>();
+            try {
+                Files.list(getPackagesInfoPath()).forEach(file -> {
+                            packages.add(JSON.deserialize(file, StoredPackageInfo.class));
+                        }
+                );
+
+            } catch (Exception e) {
+                logger.error("Ошибка загрузки списка пакетов", e);
+            }
+        }
+
+        for (var pack : packages) {
+            loadVersions(pack.getName(), Constants.defaultChannel).forEach(item -> {
+                pack.getVersions().add(item.getMetadata().getVersion());
+            });
+        }
+        return packages;
+    }
+
+    public void loadStoredChannels() {
+        channels = JSON.deserializeList(pathStoredChannels(), Channel.class);
+
+        if (channels == null) {
+            channels = new ArrayList<>();
+            channelRegistration(new Channel("stable", true));
+        }
+
+        for (Channel channel : channels) {
+            collectChannelPackages(channel);
+        }
+    }
+
+    public boolean updateStoredChannels() {
+        try {
+            JSON.serialize(channels, pathStoredChannels());
+            return true;
+        } catch (IOException e) {
+            logger.error("Ошибка сохранения информации о каналах", e);
+            return false;
+        }
+    }
+
     // endregion
+
+    void collectChannelPackages(Channel channel) {
+        Path channelPath = getChannelPath(channel.name);
+
+        Stream<Path> subPaths = null;
+        try {
+            subPaths = Files.list(channelPath).filter(Files::isDirectory);
+        } catch (IOException e) {
+            logger.error("Ошибка поиска пакетов канала " + channel.name, e);
+            return;
+        }
+        subPaths.forEach(path -> {
+            String packageName = path.getFileName().toString();
+            var pack = getPackage(packageName);
+            if (pack != null) {
+                channel.packages.add(pack);
+            }
+        });
+    }
+
+    // region paths
+
+    protected Path getWorkPath() {
+        return configuration.getStorePath();
+    }
+
+    protected Path getPackagesInfoPath() {
+        try {
+            Path path = configuration.getSettingsPath().resolve("packages");
+            if (Files.notExists(path)) {
+                Files.createDirectories(path);
+            }
+            return path;
+        } catch (Exception ignore) {
+        }
+
+        return null;
+    }
+
+    protected Path pathStoredChannels() {
+        return configuration.getSettingsPath().resolve("channels.json");
+    }
+
+    protected Path getChannelPath(String channel) {
+        return createPath(getWorkPath().resolve(channel));
+    }
+
+    protected Path getPackagePath(PackageInfo packageInfo, String channel) {
+        return getPackagePath(packageInfo.getName(), channel);
+    }
+
+    protected Path getPackagePath(String packageName, String channel) {
+        return createPath(getChannelPath(channel).resolve(packageName));
+    }
+
+    protected Path getVersionPath(IPackageMetadata packageInfo, String channel) {
+        return getVersionPath(packageInfo.getName(), packageInfo.getVersion(), channel);
+    }
+
+    protected Path getVersionPath(String packageName, String version, String channel) {
+        var path = getWorkPath()
+                .resolve(channel)
+                .resolve(packageName)
+                .resolve(version);
+
+        return createPath(path);
+    }
+
+    protected Path createPath(Path path) {
+        if (Files.notExists(path)) {
+            try {
+                Files.createDirectories(path);
+            } catch (IOException e) {
+                logger.error("Ошибка создания каталога " + path.toAbsolutePath(), e);
+            }
+        }
+        return path;
+    }
+
+    //endregion
 }

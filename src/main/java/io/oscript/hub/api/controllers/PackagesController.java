@@ -23,13 +23,13 @@ import java.io.InputStream;
 import java.util.List;
 
 @RestController
-public class ListController extends BaseController {
+public class PackagesController extends BaseController {
 
-    static final Logger logger = LoggerFactory.getLogger(ListController.class);
+    static final Logger logger = LoggerFactory.getLogger(PackagesController.class);
 
     @GetMapping("packages")
     public ResponseEntity<List<StoredPackageInfo>> packageList() throws IOException {
-        var body = store.getPackages(Constants.defaultChannel);
+        var body = store.getPackages();
 
         return ResponseEntity
                 .ok()
@@ -39,7 +39,7 @@ public class ListController extends BaseController {
 
     @GetMapping("packages/{name}")
     public ResponseEntity<StoredPackageInfo> packageInfo(@PathVariable("name") String packageName) {
-        var body = store.getPackage(packageName, Constants.defaultChannel);
+        var body = store.getPackage(packageName);
 
         if (body != null) {
             return ResponseEntity
@@ -58,44 +58,6 @@ public class ListController extends BaseController {
                                                                 @PathVariable("version")
                                                                         String version) {
         var body = store.getVersion(packageName, version, Constants.defaultChannel);
-
-        if (body != null) {
-            return ResponseEntity
-                    .ok()
-                    .body(body);
-        } else {
-            return ResponseEntity
-                    .notFound()
-                    .build();
-        }
-    }
-
-    @GetMapping("channels/{channel}/{name}")
-    public ResponseEntity<StoredPackageInfo> packageInfo(@PathVariable("channel")
-                                                                 String channel,
-                                                         @PathVariable("name")
-                                                                 String packageName) {
-        var body = store.getPackage(packageName, channel);
-
-        if (body != null) {
-            return ResponseEntity
-                    .ok()
-                    .body(body);
-        } else {
-            return ResponseEntity
-                    .notFound()
-                    .build();
-        }
-    }
-
-    @GetMapping("channels/{channel}/{name}/{version}")
-    public ResponseEntity<StoredVersionInfo> packageVersionInfo(@PathVariable("channel")
-                                                                        String channel,
-                                                                @PathVariable("name")
-                                                                        String packageName,
-                                                                @PathVariable("version")
-                                                                        String version) {
-        var body = store.getVersion(packageName, version, channel);
 
         if (body != null) {
             return ResponseEntity

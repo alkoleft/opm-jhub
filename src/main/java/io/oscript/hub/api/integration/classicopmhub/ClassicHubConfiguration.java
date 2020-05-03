@@ -7,11 +7,15 @@ import java.util.List;
 
 @Data
 public class ClassicHubConfiguration {
-    String channel = "opm-hub";
+    String channel;
     List<String> servers = new ArrayList<>();
 
-    public ClassicHubConfiguration() {
-        servers.add("http://hub.oscript.io");
-        servers.add("http://hub.oscript.ru");
+    static ClassicHubConfiguration defaultConfiguration() {
+        ClassicHubConfiguration conf = new ClassicHubConfiguration();
+        conf.channel = "opm-mirror";
+        conf.servers.add("http://hub.oscript.io");
+        conf.servers.add("http://hub.oscript.ru");
+
+        return conf;
     }
 }

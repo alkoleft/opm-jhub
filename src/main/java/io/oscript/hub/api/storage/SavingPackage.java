@@ -23,4 +23,15 @@ public class SavingPackage {
         this.channel = channel;
     }
 
+    public String getName() {
+        return packageData.getMetadata().getName();
+    }
+
+    public String getVersion() {
+        return packageData.getMetadata().getVersion();
+    }
+
+    public String getChannel() {
+        return channel;
+    }
 }

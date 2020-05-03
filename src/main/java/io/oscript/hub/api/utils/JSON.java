@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -36,6 +37,8 @@ public class JSON {
     }
 
     public static <T> T deserialize(Path path, Class<T> type) {
+        if (Files.notExists(path))
+            return null;
         try {
             return mapper().readValue(path.toFile(), type);
         } catch (IOException ex) {
@@ -45,10 +48,13 @@ public class JSON {
     }
 
     public static <T> List<T> deserializeList(Path path, Class<T> type) {
+        if (Files.notExists(path))
+            return null;
         try {
             ObjectMapper mapper = mapper();
             CollectionType collectionType = mapper.getTypeFactory()
                     .constructCollectionType(List.class, type);
+
             return mapper.readValue(path.toFile(), collectionType);
         } catch (IOException ex) {
             logger.error("Ошибка чтения разбора файла " + path.toString(), ex);
@@ -70,4 +76,5 @@ public class JSON {
             return null;
         }
     }
+
 }
