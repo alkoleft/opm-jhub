@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class ApplicationConfiguration {
+
     @Bean
     public IStoreProvider getStore() {
         var store = new FileSystemStoreProvider();

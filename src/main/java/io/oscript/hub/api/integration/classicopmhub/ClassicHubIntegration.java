@@ -7,8 +7,9 @@ import io.oscript.hub.api.integration.PackagesSource;
 import io.oscript.hub.api.integration.VersionSourceInfo;
 import io.oscript.hub.api.integration.VersionSourceType;
 import io.oscript.hub.api.ospx.OspxPackage;
-import io.oscript.hub.api.storage.IStoreProvider;
+import io.oscript.hub.api.storage.Channel;
 import io.oscript.hub.api.storage.SavingPackage;
+import io.oscript.hub.api.storage.Storage;
 import io.oscript.hub.api.utils.HttpRequest;
 import io.oscript.hub.api.utils.JSON;
 import org.slf4j.Logger;
@@ -34,16 +35,19 @@ public class ClassicHubIntegration implements PackagesSource {
 
     static final Logger logger = LoggerFactory.getLogger(PackagesController.class);
 
+    @Autowired
+    HubConfiguration appConfig;
+
+    @Autowired
+    Storage store;
+
+    Channel mainChannel;
+
     ClassicHubConfiguration config = new ClassicHubConfiguration();
 
     private List<Package> packages = new ArrayList<>();
     private List<Version> versions = new ArrayList<>();
 
-    @Autowired
-    HubConfiguration appConfig;
-
-    @Autowired
-    IStoreProvider store;
 
     @PostConstruct
     void init() {
@@ -60,12 +64,13 @@ public class ClassicHubIntegration implements PackagesSource {
                 stream.close();
             }
 
-            store.channelRegistration(config.channel);
 
             logger.info(description, JSON.serialize(config));
         } catch (Exception e) {
             logger.error("Ошибка операции: " + description, e);
         }
+
+        mainChannel = store.registrationChannel(config.channel);
     }
 
     @Override
@@ -98,11 +103,12 @@ public class ClassicHubIntegration implements PackagesSource {
 
     public void downloadPackages() {
         logger.info("Загрузка версий пакетов");
+
         getVersions().stream()
-                .filter(version -> !store.containsVersion(version.packageID, version.version, config.channel))
+                .filter(version -> !mainChannel.containsVersion(version.packageID, version.version))
                 .map(this::downloadVersion)
                 .filter(Objects::nonNull)
-                .forEach(store::savePackage);
+                .forEach(mainChannel::pushPackage);
         logger.info("Загрузка пакетов, которые не содержат версий");
         packages.stream()
                 .filter(aPackage -> aPackage.versions.size() == 0)
@@ -110,8 +116,8 @@ public class ClassicHubIntegration implements PackagesSource {
                 .reduce(Stream::concat)
                 .orElseGet(Stream::empty)
                 .filter(Objects::nonNull)
-                .filter(savingPackage -> !store.containsVersion(savingPackage.getName(), savingPackage.getVersion(), savingPackage.getChannel()))
-                .forEach(store::savePackage);
+                .filter(savingPackage -> !mainChannel.containsVersion(savingPackage.getName(), savingPackage.getVersion()))
+                .forEach(mainChannel::pushPackage);
 
     }
 

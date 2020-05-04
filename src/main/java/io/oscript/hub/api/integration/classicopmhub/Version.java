@@ -1,10 +1,7 @@
 package io.oscript.hub.api.integration.classicopmhub;
 
-import io.oscript.hub.api.integration.PackageSourceType;
 import io.oscript.hub.api.integration.VersionBase;
 import lombok.Data;
-
-import java.io.InputStream;
 
 @Data
 public class Version implements VersionBase {
@@ -18,15 +15,4 @@ public class Version implements VersionBase {
         this.packageID = packageID;
     }
 
-    public PackageSourceType getType() {
-        return PackageSourceType.BinaryPackage;
-    }
-
-    public String getPackageID() {
-        return null;
-    }
-
-    public InputStream getStream() {
-        return null;
-    }
 }

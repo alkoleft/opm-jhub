@@ -1,8 +1,5 @@
 package io.oscript.hub.api.storage;
 
-import io.oscript.hub.api.data.IPackageMetadata;
-import io.oscript.hub.api.ospx.OspxPackage;
-
 import java.io.IOException;
 import java.util.List;
 
@@ -12,9 +9,9 @@ public interface IStoreProvider {
 
     ChannelInfo channelRegistration(String name);
 
-    ChannelInfo channelRegistration(ChannelInfo channel);
-
     ChannelInfo getChannel(String name);
+
+    boolean saveChannel(ChannelInfo channel);
 
     //endregion
 
@@ -22,28 +19,31 @@ public interface IStoreProvider {
 
     List<StoredPackageInfo> getPackages(String channel) throws IOException;
 
-    List<StoredPackageInfo> getPackages() throws IOException;
+    StoredPackageInfo getPackage(String channel, String packageName);
 
-    StoredPackageInfo getPackage(String packageName);
+    boolean savePackage(String channel, StoredPackageInfo pack);
 
-    StoredPackageInfo getPackage(String packageName, String channel);
+    boolean existPackage(String channel, String name);
 
     //endregion
 
-    StoredVersionInfo getVersion(String packageName, String version, String channel);
+    // region Versions
 
-    boolean savePackage(OspxPackage ospxPackage, String channel) throws IOException;
+    StoredVersionInfo getVersion(String channel, String name, String version);
 
-    boolean savePackage(SavingPackage pack);
+    byte[] getPackageData(String channel, String name, String version) throws IOException;
 
-    byte[] getPackageData(IPackageMetadata metadata, String channel) throws IOException;
+    List<StoredVersionInfo> getVersions(String channel, String name) throws IOException;
 
-    boolean containsVersion(String packageID, String version, String channel);
+    boolean saveVersionBin(SavingPackage pack);
 
-    boolean containsVersion(String packageID, String version);
+    boolean saveVersion(SavingPackage pack);
 
-    List<StoredVersionInfo> getVersions(String packageName);
+    boolean saveVersion(String channel, StoredVersionInfo version);
 
-    List<StoredVersionInfo> getVersions(String packageName, String channel);
+    boolean existVersion(String channel, String name, String version);
+
+    // endregion
+
 }
 

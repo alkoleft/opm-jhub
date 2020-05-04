@@ -13,7 +13,7 @@ public class SavingPackage {
     PackageType type;
 
     public SavingPackage(OspxPackage packageData) {
-        this(packageData, PackageType.UNKNOWN, VersionSourceInfo.UNKNOWN, Constants.defaultChannel);
+        this(packageData, PackageType.UNKNOWN, VersionSourceInfo.UNKNOWN, Constants.STABLE);
     }
 
     public SavingPackage(OspxPackage packageData, String channel) {

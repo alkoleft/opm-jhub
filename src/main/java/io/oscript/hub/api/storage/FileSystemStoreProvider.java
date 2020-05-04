@@ -2,12 +2,7 @@ package io.oscript.hub.api.storage;
 
 import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.data.IPackageMetadata;
-import io.oscript.hub.api.data.PackageInfo;
-import io.oscript.hub.api.integration.PackageType;
-import io.oscript.hub.api.integration.VersionSourceInfo;
-import io.oscript.hub.api.ospx.OspxPackage;
 import io.oscript.hub.api.utils.Common;
-import io.oscript.hub.api.utils.Constants;
 import io.oscript.hub.api.utils.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,26 +14,23 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class FileSystemStoreProvider implements IStoreProvider {
 
     static final Logger logger = LoggerFactory.getLogger(FileSystemStoreProvider.class);
 
+    static String packageJSON = "package.json";
+    static String versionJSON = "version.json";
+
     @Autowired
     public HubConfiguration configuration;
 
-    List<StoredPackageInfo> packages;
     List<ChannelInfo> channels;
 
     @PostConstruct
     public void init() {
-        loadPackages();
-
         loadStoredChannels();
     }
 
@@ -58,276 +50,173 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     @Override
     public ChannelInfo channelRegistration(String name) {
-        return channelRegistration(new ChannelInfo(name, false));
+        return channelRegistration(name, false);
+    }
+
+    public ChannelInfo channelRegistration(String name, boolean isDefault) {
+        ChannelInfo result;
+        if (null == (result = getChannel(name))) {
+            channels.add(result = new ChannelInfo(name, isDefault));
+            saveChannel(result);
+        }
+        return result;
     }
 
     @Override
-    public ChannelInfo channelRegistration(ChannelInfo channel) {
-        ChannelInfo result;
-        if (null == (result = getChannel(channel.name))) {
-            channels.add(result = channel);
-
-            updateStoredChannels();
-
-            collectChannelPackages(channel);
+    public boolean saveChannel(ChannelInfo channel) {
+        try {
+            JSON.serialize(channels, pathStoredChannels());
+            return true;
+        } catch (IOException e) {
+            logger.error("Ошибка сохранения списка каналов", e);
+            return false;
         }
-        return result;
     }
 
     // endregion Channels
 
     // region Packages
 
-    public List<StoredPackageInfo> getPackages() {
-        return packages;
-    }
+    @Override
+    public List<StoredPackageInfo> getPackages(String channelName) throws IOException {
+        Path channelPath = getChannelPath(channelName);
 
-    public StoredPackageInfo getPackage(String packageName) {
-        if (Common.isNullOrEmpty(packageName))
-            return null;
-        return packages.stream().filter(item -> item.getName().equalsIgnoreCase(packageName)).findFirst().orElse(null);
+        createPath(channelPath);
+
+        return Files.list(channelPath)
+                .filter(path -> pathFilter(path, packageJSON))
+                .map(path -> JSON.deserialize(path.resolve(packageJSON), StoredPackageInfo.class))
+                .collect(Collectors.toList());
     }
 
     @Override
-    public List<StoredPackageInfo> getPackages(String channelName) {
-        var channel = getChannel(channelName);
-        if (channel == null)
-            return null;
-        return channel.packages;
-    }
+    public StoredPackageInfo getPackage(String channel, String packageName) {
+        Path path = getPackagePath(packageName, channel);
 
-    @Override
-    public StoredPackageInfo getPackage(String packageName, String channel) {
-        return getPackage(packageName);
+        if (!pathFilter(path, packageJSON)) {
+            return null;
+        }
+
+        return JSON.deserialize(path.resolve(packageJSON), StoredPackageInfo.class);
     }
 
     // endregion Packages
 
     //region Versions
-    @Override
-    public StoredVersionInfo getVersion(String packageName, String version, String channel) {
-        if (Common.isNullOrEmpty(version) || version.equalsIgnoreCase("latest")) {
-            version = getPackage(packageName, channel).getVersion();
-        }
-        Path path = getVersionPath(packageName, version, channel).resolve(Constants.metadataFile);
 
-        if (Files.notExists(path))
+    @Override
+    public List<StoredVersionInfo> getVersions(String channel, String name) throws IOException {
+        Path packagePath = getPackagePath(name, channel);
+        return Files.list(packagePath)
+                .filter(path -> pathFilter(path, versionJSON))
+                .map(path -> JSON.deserialize(path.resolve(versionJSON), StoredVersionInfo.class))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public StoredVersionInfo getVersion(String channel, String name, String version) {
+        Path path = getVersionPath(name, version, channel);
+
+        if (!pathFilter(path, versionJSON))
             return null;
-        return Objects.requireNonNull(JSON.deserialize(path, StoredVersionInfo.class));
-    }
 
-    @Override
-    public List<StoredVersionInfo> getVersions(String packageName) {
-
-        return loadVersions(packageName, Constants.defaultChannel);
-    }
-
-    @Override
-    public List<StoredVersionInfo> getVersions(String packageName, String channel) {
-
-        return loadVersions(packageName, channel);
-    }
-
-    protected List<StoredVersionInfo> loadVersions(String packageName, String channel) {
-        Path path = getPackagePath(packageName, channel);
-        try {
-            return Files.list(path)
-                    .filter(item -> Files.isDirectory(path)
-                            && !Files.isSymbolicLink(path)
-                            && Files.exists(item.resolve(Constants.metadataFile)))
-                    .sorted()
-                    .map(item -> JSON.deserialize(item.resolve(Constants.metadataFile), StoredVersionInfo.class))
-                    .collect(Collectors.toList());
-        } catch (IOException ex) {
-            return new ArrayList<>();
-        }
+        return JSON.deserialize(path.resolve(versionJSON), StoredVersionInfo.class);
     }
 
     //endregion
 
     @Override
-    public boolean savePackage(OspxPackage ospxPackage, String channel) {
+    public byte[] getPackageData(String channel, String name, String version) throws IOException {
+        Path path = getVersionPath(name, version, channel);
+        Path file = path.resolve(Common.packageFileName(name, version));
 
-        return savePackage(new SavingPackage(ospxPackage, PackageType.STABLE, VersionSourceInfo.UNKNOWN, channel));
-    }
-
-    @Override
-    public boolean savePackage(SavingPackage pack) {
-
-        return savePackageData(pack) && savePackageInfo(pack);
-    }
-
-    @Override
-    public byte[] getPackageData(IPackageMetadata metadata, String channel) throws IOException {
-        Path path = getVersionPath(metadata, channel);
-        Path file = path.resolve(Common.packageFileName(metadata));
-
-        return Files.readAllBytes(file);
-    }
-
-    public boolean containsVersion(String packageID, String version) {
-        return containsVersion(packageID, version, Constants.defaultChannel);
-    }
-
-    public boolean containsVersion(String packageID, String version, String channel) {
-        return getVersion(packageID, version, channel) != null;
+        if (Files.exists(file)) {
+            return Files.readAllBytes(file);
+        } else {
+            return null;
+        }
     }
 
     // region save
 
-    protected boolean savePackageData(SavingPackage pack) {
-        IPackageMetadata metadata = pack.packageData.getMetadata();
+    @Override
+    public boolean saveVersion(SavingPackage pack) {
+        return saveVersion(pack.channel, StoredVersionInfo.create(pack));
+    }
 
-        String prefix = String.format("Сохранение %s, канал %s. ", metadata.fullName(), pack.channel);
-        logger.debug(prefix);
-
-        Path workPath = getVersionPath(metadata, pack.channel);
-        logger.debug("каталог хранения {}", workPath);
+    @Override
+    public boolean saveVersion(String channel, StoredVersionInfo storedVersion) {
+        Path versionPath = getVersionPath(storedVersion.getMetadata(), channel);
 
         try {
-            Files.createDirectories(workPath);
+            Files.createDirectories(versionPath);
+            JSON.serialize(storedVersion, versionPath.resolve(versionJSON));
+            return true;
+        } catch (IOException e) {
+            logger.error("Ошибка сохранения информации о версии", e);
+            return false;
+        }
+    }
 
-            FileOutputStream out = new FileOutputStream(workPath.resolve(Common.packageFileName(metadata)).toFile());
+    @Override
+    public boolean existVersion(String channel, String name, String version) {
+        Path path = getVersionPath(name, version, channel);
+
+        return pathFilter(path, versionJSON) && Files.exists(path.resolve(Common.packageFileName(name, version)));
+    }
+
+    @Override
+    public boolean savePackage(String channel, StoredPackageInfo pack) {
+        Path packagePath = getPackagePath(pack.getName(), channel);
+        createPath(packagePath);
+
+        try {
+            JSON.serialize(pack, packagePath.resolve(packageJSON));
+            return true;
+        } catch (IOException e) {
+            logger.error("Ошибка сохранения метаданных пакета", e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean existPackage(String channel, String name) {
+        Path path = getPackagePath(name, channel);
+
+        return pathFilter(path, packageJSON);
+    }
+
+    public boolean saveVersionBin(SavingPackage pack) {
+        Path versionPath = getVersionPath(pack.getName(), pack.getVersion(), pack.getChannel());
+        createPath(versionPath);
+
+        Path versionBin = versionPath.resolve(Common.packageFileName(pack.packageData.getMetadata()));
+        try {
+            FileOutputStream out = new FileOutputStream(versionBin.toFile());
             pack.packageData.getPackageRaw().transferTo(out);
-            out.close();
-
-            logger.info(prefix + "Успешно");
-
+            return true;
         } catch (Exception e) {
-            logger.error(prefix + "Ошибка", e);
+            logger.error("Ошибка записи " + versionBin.toString(), e);
             return false;
         }
-
-        return true;
     }
-
-    protected boolean savePackageInfo(SavingPackage pack) {
-        IPackageMetadata metadata = pack.packageData.getMetadata();
-
-        String prefix = String.format("Сохранение метаданных %s, канал %s. ", metadata.fullName(), pack.channel);
-        logger.debug(prefix);
-
-        Path workPath = getVersionPath(metadata, pack.channel);
-        logger.debug("каталог хранения {}", workPath);
-
-        StoredVersionInfo storedVersion = new StoredVersionInfo();
-        storedVersion.metadata = new Metadata();
-
-        storedVersion.metadata.setName(pack.packageData.getMetadata().getName());
-        storedVersion.metadata.setVersion(pack.packageData.getMetadata().getVersion());
-        storedVersion.metadata.setEngineVersion(pack.packageData.getMetadata().getEngineVersion());
-        storedVersion.metadata.setAuthor(pack.packageData.getMetadata().getAuthor());
-        storedVersion.metadata.setAuthorEmail(pack.packageData.getMetadata().getAuthorEmail());
-        storedVersion.metadata.setDescription(pack.packageData.getMetadata().getDescription());
-        storedVersion.metadata.setDependencies(pack.packageData.getMetadata().getDependencies());
-
-        storedVersion.source = pack.sourceInfo;
-        storedVersion.saveData = new Date();
-        try {
-            Files.createDirectories(workPath);
-            JSON.serialize(storedVersion, workPath.resolve(Constants.metadataFile));
-
-            logger.debug("Успешно");
-        } catch (Exception e) {
-            logger.error(prefix + "Ошибка", e);
-            return false;
-        }
-
-        updateStoredPackageInfo(storedVersion);
-
-        return true;
-
-    }
-
-    void updateStoredPackageInfo(StoredVersionInfo pack) {
-        logger.debug("Обновление информации о хранимых пакетах");
-
-        var metadata = pack.getMetadata();
-        StoredPackageInfo packInfo = packages.stream().filter((StoredPackageInfo item) -> item.getName().equalsIgnoreCase(metadata.getName())).findFirst().orElse(null);
-
-        if (packInfo == null) {
-            packInfo = new StoredPackageInfo();
-            packInfo.setName(metadata.getName());
-            packInfo.setDescription(metadata.getDescription());
-            packInfo.setVersion(metadata.getVersion());
-            packInfo.setMetadata(metadata);
-            packages.add(packInfo);
-        } else if (packInfo.getVersion() == null || packInfo.getVersion().compareToIgnoreCase(metadata.getVersion()) <= 0) {
-            packInfo.setVersion(metadata.getVersion());
-            packInfo.setMetadata(metadata);
-        }
-
-        Path path = getPackagesInfoPath().resolve(String.format("%s.json", packInfo.getName()));
-        try {
-            JSON.serialize(packInfo, path);
-        } catch (Exception ignore) {
-        }
-    }
-
-    public List<StoredPackageInfo> loadPackages() {
-        if (packages == null) {
-            packages = new ArrayList<>();
-            try {
-                Files.list(getPackagesInfoPath()).forEach(file -> {
-                            packages.add(JSON.deserialize(file, StoredPackageInfo.class));
-                        }
-                );
-
-            } catch (Exception e) {
-                logger.error("Ошибка загрузки списка пакетов", e);
-            }
-        }
-
-        for (var pack : packages) {
-            loadVersions(pack.getName(), Constants.defaultChannel).forEach(item -> {
-                pack.getVersions().add(item.getMetadata().getVersion());
-            });
-        }
-        return packages;
-    }
-
+    
     public void loadStoredChannels() {
         channels = JSON.deserializeList(pathStoredChannels(), ChannelInfo.class);
 
         if (channels == null) {
             channels = new ArrayList<>();
-            channelRegistration(new ChannelInfo("stable", true));
-        }
-
-        for (ChannelInfo channel : channels) {
-            collectChannelPackages(channel);
-        }
-    }
-
-    public boolean updateStoredChannels() {
-        try {
-            JSON.serialize(channels, pathStoredChannels());
-            return true;
-        } catch (IOException e) {
-            logger.error("Ошибка сохранения информации о каналах", e);
-            return false;
+            channelRegistration("stable", true);
         }
     }
 
     // endregion
 
-    void collectChannelPackages(ChannelInfo channel) {
-        Path channelPath = getChannelPath(channel.name);
-
-        Stream<Path> subPaths = null;
-        try {
-            subPaths = Files.list(channelPath).filter(Files::isDirectory);
-        } catch (IOException e) {
-            logger.error("Ошибка поиска пакетов канала " + channel.name, e);
-            return;
-        }
-        subPaths.forEach(path -> {
-            String packageName = path.getFileName().toString();
-            var pack = getPackage(packageName);
-            if (pack != null) {
-                channel.packages.add(pack);
-            }
-        });
+    boolean pathFilter(Path path, String metadataFile) {
+        return Files.exists(path)
+                && Files.isDirectory(path)
+                && !Files.isSymbolicLink(path)
+                && Files.exists(path.resolve(metadataFile));
     }
 
     // region paths
@@ -336,29 +225,12 @@ public class FileSystemStoreProvider implements IStoreProvider {
         return configuration.getStorePath();
     }
 
-    protected Path getPackagesInfoPath() {
-        try {
-            Path path = configuration.getSettingsPath().resolve("packages");
-            if (Files.notExists(path)) {
-                Files.createDirectories(path);
-            }
-            return path;
-        } catch (Exception ignore) {
-        }
-
-        return null;
-    }
-
     protected Path pathStoredChannels() {
         return configuration.getSettingsPath().resolve("channels.json");
     }
 
     protected Path getChannelPath(String channel) {
         return createPath(getWorkPath().resolve(channel));
-    }
-
-    protected Path getPackagePath(PackageInfo packageInfo, String channel) {
-        return getPackagePath(packageInfo.getName(), channel);
     }
 
     protected Path getPackagePath(String packageName, String channel) {

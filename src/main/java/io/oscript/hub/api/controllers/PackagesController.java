@@ -3,7 +3,6 @@ package io.oscript.hub.api.controllers;
 import io.oscript.hub.api.response.Response;
 import io.oscript.hub.api.storage.StoredPackageInfo;
 import io.oscript.hub.api.storage.StoredVersionInfo;
-import io.oscript.hub.api.utils.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -29,7 +28,7 @@ public class PackagesController extends BaseController {
 
     @GetMapping("packages")
     public ResponseEntity<List<StoredPackageInfo>> packageList() throws IOException {
-        var body = store.getPackages();
+        var body = store.getStableChannel().getPackages();
 
         return ResponseEntity
                 .ok()
@@ -39,7 +38,7 @@ public class PackagesController extends BaseController {
 
     @GetMapping("packages/{name}")
     public ResponseEntity<StoredPackageInfo> packageInfo(@PathVariable("name") String packageName) {
-        var body = store.getPackage(packageName);
+        var body = store.getStableChannel().getPackage(packageName);
 
         if (body != null) {
             return ResponseEntity
@@ -53,8 +52,8 @@ public class PackagesController extends BaseController {
     }
 
     @GetMapping("packages/{name}/versions")
-    public ResponseEntity<List<StoredVersionInfo>> versions(@PathVariable("name") String packageName) {
-        var body = store.getVersions(packageName);
+    public ResponseEntity<List<StoredVersionInfo>> versions(@PathVariable("name") String packageName) throws IOException {
+        var body = store.getStableChannel().getVersions(packageName);
 
         if (body != null) {
             return ResponseEntity
@@ -72,7 +71,7 @@ public class PackagesController extends BaseController {
                                                                         String packageName,
                                                                 @PathVariable("version")
                                                                         String version) {
-        var body = store.getVersion(packageName, version, Constants.defaultChannel);
+        var body = store.getStableChannel().getVersion(packageName, version);
 
         if (body != null) {
             return ResponseEntity

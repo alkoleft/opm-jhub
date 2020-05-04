@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 public class RequestParameters {
 
-    String channel = Constants.defaultChannel;
+    String channel = Constants.STABLE;
     String oAuthToken;
 
 }

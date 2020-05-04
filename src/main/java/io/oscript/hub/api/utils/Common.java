@@ -11,4 +11,8 @@ public class Common {
     public static String packageFileName(IPackageMetadata metadata){
         return String.format("%s-%s.ospx", metadata.getName(), metadata.getVersion());
     }
+
+    public static String packageFileName(String name, String version){
+        return String.format("%s-%s.ospx", name, version);
+    }
 }

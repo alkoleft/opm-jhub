@@ -72,7 +72,7 @@ public class JSON {
                     .constructCollectionType(List.class, type);
             return mapper.readValue(stream, collectionType);
         } catch (IOException ex) {
-            logger.error("Ошибка чтения разбора потока для " + type.getSimpleName(), ex);
+            logger.error("Ошибка разбора потока для коллекции " + type.getSimpleName(), ex);
             return null;
         }
     }

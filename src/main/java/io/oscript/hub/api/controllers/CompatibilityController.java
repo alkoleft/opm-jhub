@@ -2,8 +2,8 @@ package io.oscript.hub.api.controllers;
 
 import io.oscript.hub.api.data.RequestParameters;
 import io.oscript.hub.api.response.Response;
+import io.oscript.hub.api.storage.Channel;
 import io.oscript.hub.api.storage.StoredPackageInfo;
-import io.oscript.hub.api.storage.StoredVersionInfo;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,7 +20,8 @@ public class CompatibilityController extends BaseController {
     @GetMapping("download/list.txt")
     public ResponseEntity<String> packageListTXT(@RequestHeader HttpHeaders headers) throws IOException {
         RequestParameters parameters = getRequestParameters(headers);
-        var packages = store.getPackages(parameters.getChannel());
+        Channel channel = store.getChannel(parameters.getChannel());
+        var packages = channel.getPackages();
         if (packages == null) {
             return ResponseEntity
                     .notFound()
@@ -43,6 +44,8 @@ public class CompatibilityController extends BaseController {
         } else {
 
             RequestParameters parameters = getRequestParameters(headers);
+            Channel channel = store.getChannel(parameters.getChannel());
+
             String version = filename.substring(name.length());
             if (version.startsWith("-")) {
                 version = version.substring(1, version.length() - 5);
@@ -50,9 +53,7 @@ public class CompatibilityController extends BaseController {
                 version = "latest";
             }
 
-            StoredVersionInfo versionInfo = store.getVersion(name, version, parameters.getChannel());
-
-            var data = store.getPackageData(versionInfo.getMetadata(), parameters.getChannel());
+            var data = channel.getVersionData(name, version);
 
             return getFileResponse(filename, data);
         }

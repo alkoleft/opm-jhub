@@ -2,7 +2,8 @@ package io.oscript.hub.api.integration.github;
 
 import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.integration.PackagesSource;
-import io.oscript.hub.api.storage.IStoreProvider;
+import io.oscript.hub.api.storage.Channel;
+import io.oscript.hub.api.storage.Storage;
 import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.JSON;
 import org.kohsuke.github.GHPerson;
@@ -28,10 +29,12 @@ public class GithubIntegration implements PackagesSource {
     static GitHub client;
 
     @Autowired
-    IStoreProvider store;
+    Storage store;
 
     @Autowired
     HubConfiguration appConfig;
+
+    Channel mainChannel;
 
     GithubConfig config;
     List<Repository> repositories;
@@ -47,18 +50,20 @@ public class GithubIntegration implements PackagesSource {
             stream.close();
         }
 
-        store.channelRegistration(config.channel);
+        mainChannel = store.registrationChannel(config.channel);
 
         logger.info("Загружены настройки {}", JSON.serialize(config));
 
         stream = appConfig.getConfiguration("repositories");
-        if (stream == null) {
-            repositories = new ArrayList<>();
-        } else {
+        if (stream != null) {
             repositories = JSON.deserializeList(stream, Repository.class);
             stream.close();
-            repositories.forEach(repository -> repository.getReleases().forEach(release -> release.repository = repository));
         }
+
+        if (repositories == null) {
+            repositories = new ArrayList<>();
+        }
+        repositories.forEach(repository -> repository.getReleases().forEach(release -> release.repository = repository));
 
         logger.info("Загружен список репозиториев, {} репозиториев", repositories.size());
 

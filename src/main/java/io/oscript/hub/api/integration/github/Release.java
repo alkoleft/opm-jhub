@@ -1,7 +1,6 @@
 package io.oscript.hub.api.integration.github;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.oscript.hub.api.integration.PackageSourceType;
 import io.oscript.hub.api.integration.VersionBase;
 import io.oscript.hub.api.ospx.OspxPackage;
 import io.oscript.hub.api.utils.Common;
@@ -9,7 +8,6 @@ import lombok.Data;
 import org.kohsuke.github.GHRelease;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Date;
 
 @Data
@@ -75,15 +73,4 @@ public class Release implements VersionBase {
         return null;
     }
 
-    public PackageSourceType getType() {
-        return Common.isNullOrEmpty(packageUrl) ? PackageSourceType.ZipSource : PackageSourceType.BinaryPackage;
-    }
-
-    public String getPackageID() {
-        return repository.getPackageID();
-    }
-
-    public InputStream getStream() {
-        return null;
-    }
 }
