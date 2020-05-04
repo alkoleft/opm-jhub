@@ -2,11 +2,12 @@ package io.oscript.hub.api.integration.classicopmhub;
 
 import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.controllers.PackagesController;
+import io.oscript.hub.api.integration.PackageType;
 import io.oscript.hub.api.integration.PackagesSource;
 import io.oscript.hub.api.integration.VersionSourceInfo;
 import io.oscript.hub.api.integration.VersionSourceType;
 import io.oscript.hub.api.ospx.OspxPackage;
-import io.oscript.hub.api.storage.IStore;
+import io.oscript.hub.api.storage.IStoreProvider;
 import io.oscript.hub.api.storage.SavingPackage;
 import io.oscript.hub.api.utils.HttpRequest;
 import io.oscript.hub.api.utils.JSON;
@@ -42,7 +43,7 @@ public class ClassicHubIntegration implements PackagesSource {
     HubConfiguration appConfig;
 
     @Autowired
-    IStore store;
+    IStoreProvider store;
 
     @PostConstruct
     void init() {
@@ -131,7 +132,7 @@ public class ClassicHubIntegration implements PackagesSource {
                     sourceInfo.setPackageURL(packageURL(server, version).toString());
                     sourceInfo.setVersionURL(downloadURL.toString());
 
-                    return new SavingPackage(OspxPackage.parse(data), sourceInfo, config.channel);
+                    return new SavingPackage(OspxPackage.parse(data), PackageType.STABLE, sourceInfo, config.channel);
                 }
             } catch (Exception ignored) {
             }
@@ -154,7 +155,7 @@ public class ClassicHubIntegration implements PackagesSource {
                     sourceInfo.setPackageURL(packageURL(server, pack).toString());
                     sourceInfo.setVersionURL(downloadURL.toString());
 
-                    packages.add(new SavingPackage(OspxPackage.parse(data), sourceInfo, config.channel));
+                    packages.add(new SavingPackage(OspxPackage.parse(data), PackageType.STABLE, sourceInfo, config.channel));
                 }
             } catch (Exception ignored) {
             }

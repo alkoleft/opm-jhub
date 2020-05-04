@@ -1,6 +1,6 @@
 package io.oscript.hub.api.controllers;
 
-import io.oscript.hub.api.storage.Channel;
+import io.oscript.hub.api.storage.ChannelInfo;
 import io.oscript.hub.api.storage.StoredPackageInfo;
 import io.oscript.hub.api.storage.StoredVersionInfo;
 import org.slf4j.Logger;
@@ -20,7 +20,7 @@ public class ChannelsController extends BaseController {
     static final Logger logger = LoggerFactory.getLogger(ChannelsController.class);
 
     @GetMapping("/")
-    public ResponseEntity<List<Channel>> list() throws IOException {
+    public ResponseEntity<List<ChannelInfo>> list() throws IOException {
         var body = store.getChannels();
 
         return ResponseEntity

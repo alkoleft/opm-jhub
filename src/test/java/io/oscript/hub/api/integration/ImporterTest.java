@@ -2,7 +2,7 @@ package io.oscript.hub.api.integration;
 
 import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.integration.github.GithubIntegration;
-import io.oscript.hub.api.storage.FileSystemStore;
+import io.oscript.hub.api.storage.FileSystemStoreProvider;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -24,7 +24,7 @@ class ImporterTest {
         Importer importer = new Importer();
 
         GithubIntegration.init();
-        importer.store = new FileSystemStore();
+        importer.store = new FileSystemStoreProvider();
         importer.store.configuration = configuration;
         importer.store.getAllPackages();
 

@@ -5,17 +5,16 @@ import io.oscript.hub.api.ospx.OspxPackage;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.stream.Stream;
 
-public interface IStore {
+public interface IStoreProvider {
     //region Channels
-    List<Channel> getChannels();
+    List<ChannelInfo> getChannels();
 
-    Channel channelRegistration(String name);
+    ChannelInfo channelRegistration(String name);
 
-    Channel channelRegistration(Channel channel);
+    ChannelInfo channelRegistration(ChannelInfo channel);
 
-    Channel getChannel(String name);
+    ChannelInfo getChannel(String name);
 
     //endregion
 

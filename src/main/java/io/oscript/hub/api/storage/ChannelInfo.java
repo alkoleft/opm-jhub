@@ -7,17 +7,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-public class Channel {
+public class ChannelInfo {
     String name;
     boolean isDefault;
 
     @JsonIgnore
     List<StoredPackageInfo> packages = new ArrayList<>();
 
-    public Channel() {
+    public ChannelInfo() {
     }
 
-    public Channel(String name, boolean isDefault) {
+    public ChannelInfo(String name, boolean isDefault) {
         this.name = name;
         this.isDefault = isDefault;
     }

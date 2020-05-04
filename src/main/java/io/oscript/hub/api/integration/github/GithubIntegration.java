@@ -2,7 +2,7 @@ package io.oscript.hub.api.integration.github;
 
 import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.integration.PackagesSource;
-import io.oscript.hub.api.storage.IStore;
+import io.oscript.hub.api.storage.IStoreProvider;
 import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.JSON;
 import org.kohsuke.github.GHPerson;
@@ -28,7 +28,7 @@ public class GithubIntegration implements PackagesSource {
     static GitHub client;
 
     @Autowired
-    IStore store;
+    IStoreProvider store;
 
     @Autowired
     HubConfiguration appConfig;

@@ -5,7 +5,7 @@ import io.oscript.hub.api.data.PackageInfo;
 import io.oscript.hub.api.data.RequestParameters;
 import io.oscript.hub.api.ospx.OspxPackage;
 import io.oscript.hub.api.response.Response;
-import io.oscript.hub.api.storage.IStore;
+import io.oscript.hub.api.storage.IStoreProvider;
 import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +26,7 @@ import java.util.zip.ZipInputStream;
 public class Saver {
 
     @Autowired
-    IStore store;
+    IStoreProvider store;
 
     public Response savePackage(InputStream stream, RequestParameters parameters) throws IOException {
         OspxPackage ospxPackage = OspxPackage.parse(stream);

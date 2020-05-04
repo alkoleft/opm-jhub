@@ -3,6 +3,7 @@ package io.oscript.hub.api.storage;
 import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.data.IPackageMetadata;
 import io.oscript.hub.api.data.PackageInfo;
+import io.oscript.hub.api.integration.PackageType;
 import io.oscript.hub.api.integration.VersionSourceInfo;
 import io.oscript.hub.api.ospx.OspxPackage;
 import io.oscript.hub.api.utils.Common;
@@ -24,15 +25,15 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class FileSystemStore implements IStore {
+public class FileSystemStoreProvider implements IStoreProvider {
 
-    static final Logger logger = LoggerFactory.getLogger(FileSystemStore.class);
+    static final Logger logger = LoggerFactory.getLogger(FileSystemStoreProvider.class);
 
     @Autowired
     public HubConfiguration configuration;
 
     List<StoredPackageInfo> packages;
-    List<Channel> channels;
+    List<ChannelInfo> channels;
 
     @PostConstruct
     public void init() {
@@ -43,12 +44,12 @@ public class FileSystemStore implements IStore {
 
     // region Channels
     @Override
-    public List<Channel> getChannels() {
+    public List<ChannelInfo> getChannels() {
         return channels;
     }
 
     @Override
-    public Channel getChannel(String name) {
+    public ChannelInfo getChannel(String name) {
         return channels.stream()
                 .filter(channel -> channel.name.equalsIgnoreCase(name))
                 .findFirst()
@@ -56,13 +57,13 @@ public class FileSystemStore implements IStore {
     }
 
     @Override
-    public Channel channelRegistration(String name) {
-        return channelRegistration(new Channel(name, false));
+    public ChannelInfo channelRegistration(String name) {
+        return channelRegistration(new ChannelInfo(name, false));
     }
 
     @Override
-    public Channel channelRegistration(Channel channel) {
-        Channel result;
+    public ChannelInfo channelRegistration(ChannelInfo channel) {
+        ChannelInfo result;
         if (null == (result = getChannel(channel.name))) {
             channels.add(result = channel);
 
@@ -147,7 +148,7 @@ public class FileSystemStore implements IStore {
     @Override
     public boolean savePackage(OspxPackage ospxPackage, String channel) {
 
-        return savePackage(new SavingPackage(ospxPackage, VersionSourceInfo.UNKNOWN, channel));
+        return savePackage(new SavingPackage(ospxPackage, PackageType.STABLE, VersionSourceInfo.UNKNOWN, channel));
     }
 
     @Override
@@ -286,14 +287,14 @@ public class FileSystemStore implements IStore {
     }
 
     public void loadStoredChannels() {
-        channels = JSON.deserializeList(pathStoredChannels(), Channel.class);
+        channels = JSON.deserializeList(pathStoredChannels(), ChannelInfo.class);
 
         if (channels == null) {
             channels = new ArrayList<>();
-            channelRegistration(new Channel("stable", true));
+            channelRegistration(new ChannelInfo("stable", true));
         }
 
-        for (Channel channel : channels) {
+        for (ChannelInfo channel : channels) {
             collectChannelPackages(channel);
         }
     }
@@ -310,7 +311,7 @@ public class FileSystemStore implements IStore {
 
     // endregion
 
-    void collectChannelPackages(Channel channel) {
+    void collectChannelPackages(ChannelInfo channel) {
         Path channelPath = getChannelPath(channel.name);
 
         Stream<Path> subPaths = null;

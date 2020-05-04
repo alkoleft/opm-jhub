@@ -1,15 +1,15 @@
 package io.oscript.hub.api.config;
 
-import io.oscript.hub.api.storage.FileSystemStore;
-import io.oscript.hub.api.storage.IStore;
+import io.oscript.hub.api.storage.FileSystemStoreProvider;
+import io.oscript.hub.api.storage.IStoreProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class ApplicationConfiguration {
     @Bean
-    public IStore getStore() {
-        var store = new FileSystemStore();
+    public IStoreProvider getStore() {
+        var store = new FileSystemStoreProvider();
         return store;
     }
 }
