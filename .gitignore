@@ -6,3 +6,4 @@ build/*
 gradle/*
 application.properties
 *.json
+/gradle.properties

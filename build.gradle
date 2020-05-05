@@ -3,10 +3,19 @@ plugins {
     id 'io.spring.dependency-management' version '1.0.9.RELEASE'
     id 'io.franzbecker.gradle-lombok' version '3.3.0'
     id 'java'
+    id "com.github.breadmoirai.github-release" version "2.2.12"
+}
+
+ext{
+    winswVersion='2.7.0'
+    winswNetVersion = 'net4'
+    winswBuildDir = "${project.buildDir}/windows-service"
+    releaseBuildDir = "${project.buildDir}/release-build"
 }
 
 group 'io.oscript'
-version '1.0-SNAPSHOT'
+version '1.0.0.0'
+description "Java реализация сервера пакетов OneScript"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -15,6 +24,9 @@ java {
 
 repositories {
     mavenCentral()
+    maven{
+        url 'http://repo.jenkins-ci.org/releases/'
+    }
 }
 
 jar {
@@ -23,7 +35,7 @@ jar {
 
 bootJar {
 //    https://docs.spring.io/spring-boot/docs/2.2.6.RELEASE/gradle-plugin/reference/html/#packaging-executable
-    excludeDevtools = false
+    excludeDevtools = true
     classifier = 'boot'
     launchScript()
 }
@@ -31,6 +43,10 @@ bootJar {
 lombok {
     version = '1.18.12'
     sha256 = ""
+}
+
+configurations{
+    winsw { transitive = false }
 }
 
 sourceSets {
@@ -82,6 +98,8 @@ dependencies {
         exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
     }
     // endregion
+
+    winsw "com.sun.winsw:winsw:${winswVersion}:${winswNetVersion}@exe"
 }
 
 test {
@@ -93,4 +111,56 @@ test {
 
 wrapper {
     gradleVersion = '6.3'
+}
+
+task buildRelease{
+    group = 'build'
+    description = 'Сборка релиза'
+    dependsOn('bootJar')
+    dependsOn('winswCreateArchive')
+    copy {
+        from "${project.buildDir}/libs/${project.name}-${version}-boot.jar"
+        into "${releaseBuildDir}"
+    }
+}
+
+task winswCreateFiles(dependsOn: 'bootJar', type: Copy) {
+    group = 'winsw'
+    description = 'Spring Boot winsw build'
+    dependsOn('bootJar')
+    def outPath = winswBuildDir
+
+    from "${project.buildDir}/libs/"
+    from "${rootProject.rootDir}/asService/win"
+    from "${rootProject.rootDir}/asService/logback.xml"
+    into "${outPath}"
+    rename "winsw-${winswVersion}-${winswNetVersion}.exe", "${project.name}.exe"
+    rename "${project.name}-${version}-boot.jar", "${project.name}-boot.jar"
+}
+
+task winswCreateArchive(type: Zip) {
+    dependsOn('winswCreateFiles')
+    archiveFileName = "${project.name}-${version}-WinService.zip"
+    destinationDirectory = file(releaseBuildDir)
+
+    from winswBuildDir
+}
+
+githubRelease {
+    token "${apitoken}" // This is your personal access token with Repo permissions
+    // You get this from your user settings > developer settings > Personal Access Tokens
+    owner "alkoleft" // default is the last part of your group. Eg group: "com.github.breadmoirai" => owner: "breadmoirai"
+    repo "opm-jhub" // by default this is set to your project name
+    tagName "v${version}" // by default this is set to "v${project.version}"
+    targetCommitish "master" // by default this is set to "master"
+    releaseName "v${version}" // Release title, by default this is the same as the tagName
+    body file("${rootProject.rootDir}/docs/release-notes/v${version}.md").text
+    draft true // by default this is false
+    prerelease true // by default this is false
+//    releaseAssets file(releaseBuildDir).listFiles() // this points to which files you want to upload as assets with your release
+
+    overwrite true // by default false; if set to true, will delete an existing release with the same tag and name
+    dryRun false // by default false; you can use this to see what actions would be taken without making a release
+    apiEndpoint "https://api.github.com" // should only change for github enterprise users
+    client // This is the okhttp client used for http requests
 }

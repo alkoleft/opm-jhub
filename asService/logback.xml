@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FOLDER}/log.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>
+                ${LOG_FOLDER}/archived/log_%d{yyyy-MM-dd}_%i.log
+            </fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>10</maxHistory>
+            <totalSizeCap>100MB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <charset>UTF-8</charset>
+            <pattern>%relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="info">
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>

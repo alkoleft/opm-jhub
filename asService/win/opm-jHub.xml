@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<service>
+    <id>opm-jHub</id>
+    <name>opm-jHub</name>
+    <env name="LOG_FOLDER" value="%BASE%\logs"/>
+    <description>Java реализация сервера пакетов OneScript</description>
+    <workingdirectory>%BASE%</workingdirectory>
+    <logpath>%BASE%\logs</logpath>
+    <log mode="roll-by-time">
+        <pattern>yyyyMMdd</pattern>
+    </log>
+    <executable>java</executable>
+    <startargument>-jar</startargument>
+    <startargument>-Dlogback.configurationFile=%BASE%\logback.xml</startargument>
+    <startargument>opm-jHub-boot.jar</startargument>
+    <logmode>rotate</logmode>
+</service>
