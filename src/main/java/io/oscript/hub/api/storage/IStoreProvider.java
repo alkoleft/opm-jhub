@@ -5,21 +5,23 @@ import java.util.List;
 
 public interface IStoreProvider {
     //region Channels
-    List<ChannelInfo> getChannels();
+    List<ChannelInfo> getChannels() throws Exception;
 
-    ChannelInfo channelRegistration(String name);
+    ChannelInfo channelRegistration(String name) throws IOException;
 
-    ChannelInfo getChannel(String name);
+    ChannelInfo getChannel(String name) throws IOException;
 
-    boolean saveChannel(ChannelInfo channel);
+    void saveChannel(ChannelInfo channel) throws IOException;
+
+    boolean existChannel(String name);
 
     //endregion
 
     //region Packages
 
-    List<StoredPackageInfo> getPackages(String channel) throws IOException;
+    List<StoredPackageInfo> getPackages(String channel) throws Exception;
 
-    StoredPackageInfo getPackage(String channel, String packageName);
+    StoredPackageInfo getPackage(String channel, String name) throws IOException;
 
     boolean savePackage(String channel, StoredPackageInfo pack);
 
@@ -29,11 +31,11 @@ public interface IStoreProvider {
 
     // region Versions
 
-    StoredVersionInfo getVersion(String channel, String name, String version);
+    StoredVersionInfo getVersion(String channel, String name, String version) throws IOException;
 
     byte[] getPackageData(String channel, String name, String version) throws IOException;
 
-    List<StoredVersionInfo> getVersions(String channel, String name) throws IOException;
+    List<StoredVersionInfo> getVersions(String channel, String name) throws Exception;
 
     boolean saveVersionBin(SavingPackage pack);
 

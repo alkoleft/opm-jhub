@@ -2,12 +2,16 @@ package io.oscript.hub.api.storage;
 
 import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.VersionComparator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
 import java.util.List;
 
 public class Channel {
+
+    static final Logger logger = LoggerFactory.getLogger(Channel.class);
 
     @Autowired
     IStoreProvider storeProvider;
@@ -22,11 +26,11 @@ public class Channel {
         return channelInfo;
     }
 
-    public List<StoredPackageInfo> getPackages() throws IOException {
+    public List<StoredPackageInfo> getPackages() throws Exception {
         return storeProvider.getPackages(channelInfo.name);
     }
 
-    public StoredPackageInfo getPackage(String name) {
+    public StoredPackageInfo getPackage(String name) throws IOException {
         return storeProvider.getPackage(channelInfo.name, name);
     }
 
@@ -36,8 +40,17 @@ public class Channel {
             return null;
         }
 
-        StoredVersionInfo versionInfo = getVersion(pack.getName(), pack.getVersion());
-        StoredPackageInfo packageInfo = getPackage(pack.getName());
+        StoredVersionInfo versionInfo;
+        StoredPackageInfo packageInfo;
+
+        try {
+            versionInfo = getVersion(pack.getName(), pack.getVersion());
+            packageInfo = getPackage(pack.getName());
+        } catch (Exception e) {
+            logger.error("Ошибка получения информации о версии пакета");
+            versionInfo = null;
+            packageInfo = null;
+        }
 
         if (versionInfo == null) {
             return null;
@@ -56,11 +69,11 @@ public class Channel {
 
     // region Versions
 
-    public List<StoredVersionInfo> getVersions(String name) throws IOException {
+    public List<StoredVersionInfo> getVersions(String name) throws Exception {
         return storeProvider.getVersions(channelInfo.name, name);
     }
 
-    public StoredVersionInfo getVersion(String name, String version) {
+    public StoredVersionInfo getVersion(String name, String version) throws IOException {
         if (Common.isNullOrEmpty(version) || version.equalsIgnoreCase("latest")) {
             version = getPackage(name).getVersion();
         }

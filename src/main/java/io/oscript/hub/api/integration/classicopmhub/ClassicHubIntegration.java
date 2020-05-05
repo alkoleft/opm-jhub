@@ -1,6 +1,5 @@
 package io.oscript.hub.api.integration.classicopmhub;
 
-import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.controllers.PackagesController;
 import io.oscript.hub.api.integration.PackageType;
 import io.oscript.hub.api.integration.PackagesSource;
@@ -8,6 +7,7 @@ import io.oscript.hub.api.integration.VersionSourceInfo;
 import io.oscript.hub.api.integration.VersionSourceType;
 import io.oscript.hub.api.ospx.OspxPackage;
 import io.oscript.hub.api.storage.Channel;
+import io.oscript.hub.api.storage.JSONSettingsProvider;
 import io.oscript.hub.api.storage.SavingPackage;
 import io.oscript.hub.api.storage.Storage;
 import io.oscript.hub.api.utils.HttpRequest;
@@ -23,7 +23,9 @@ import java.net.URI;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -36,7 +38,7 @@ public class ClassicHubIntegration implements PackagesSource {
     static final Logger logger = LoggerFactory.getLogger(PackagesController.class);
 
     @Autowired
-    HubConfiguration appConfig;
+    JSONSettingsProvider settings;
 
     @Autowired
     Storage store;
@@ -50,26 +52,21 @@ public class ClassicHubIntegration implements PackagesSource {
 
 
     @PostConstruct
-    void init() {
+    void initialize() throws IOException {
         String description = "Загрузка настроек интеграции с opm hub";
         logger.info(description);
 
         try {
-            var stream = appConfig.getConfiguration("opm-hub-mirror");
-            if (stream == null) {
-                config = ClassicHubConfiguration.defaultConfiguration();
-                appConfig.saveConfiguration("opm-hub-mirror", config);
-            } else {
-                config = JSON.deserialize(stream, ClassicHubConfiguration.class);
-                stream.close();
-            }
-
-
+            config = settings.getConfiguration("opm-hub-mirror", ClassicHubConfiguration.class);
             logger.info(description, JSON.serialize(config));
         } catch (Exception e) {
             logger.error("Ошибка операции: " + description, e);
         }
 
+        if (config == null) {
+            config = ClassicHubConfiguration.defaultConfiguration();
+            settings.saveConfiguration("opm-hub-mirror", config);
+        }
         mainChannel = store.registrationChannel(config.channel);
     }
 
@@ -93,7 +90,7 @@ public class ClassicHubIntegration implements PackagesSource {
             aPackage.versions.addAll(loadedVersions);
         });
 
-        if (!appConfig.saveConfiguration("opm-hub-packages", packages)) {
+        if (!settings.saveConfiguration("opm-hub-packages", packages)) {
             logger.error("Не удалось сохранить список пакетов opm-hub");
         }
 

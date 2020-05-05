@@ -32,7 +32,7 @@ public class ChannelsController extends BaseController {
     }
 
     @GetMapping("{name}")
-    public ResponseEntity<List<StoredPackageInfo>> getItem(@PathVariable("name") String name) throws IOException {
+    public ResponseEntity<List<StoredPackageInfo>> getItem(@PathVariable("name") String name) throws Exception {
         var body = store.getChannel(name).getPackages();
 
         return ResponseEntity
@@ -45,7 +45,7 @@ public class ChannelsController extends BaseController {
     public ResponseEntity<StoredPackageInfo> packageInfo(@PathVariable("channel")
                                                                  String channel,
                                                          @PathVariable("name")
-                                                                 String packageName) {
+                                                                 String packageName) throws IOException {
         var body = store.getChannel(channel).getPackage(packageName);
 
         if (body != null) {
@@ -63,7 +63,7 @@ public class ChannelsController extends BaseController {
     public ResponseEntity<List<StoredVersionInfo>> versions(@PathVariable("channel")
                                                                     String channel,
                                                             @PathVariable("name")
-                                                                    String packageName) throws IOException {
+                                                                    String packageName) throws Exception {
         var body = store.getChannel(channel).getVersions(packageName);
 
         if (body != null) {
@@ -84,7 +84,7 @@ public class ChannelsController extends BaseController {
                                                                 @PathVariable("name")
                                                                         String packageName,
                                                                 @PathVariable("version")
-                                                                        String version) {
+                                                                        String version) throws IOException {
         var body = store.getChannel(channel).getVersion(packageName, version);
 
         if (body != null) {

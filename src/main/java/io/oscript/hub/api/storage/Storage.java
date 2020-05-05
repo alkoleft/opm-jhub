@@ -1,10 +1,15 @@
 package io.oscript.hub.api.storage;
 
+import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.utils.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -13,16 +18,19 @@ public class Storage {
     @Autowired
     IStoreProvider storeProvider;
 
+    @Autowired
+    HubConfiguration appConfiguration;
+
     Map<String, Channel> channels = new LinkedHashMap<>();
 
     @PostConstruct
-    void initialize() {
+    void initialize() throws Exception {
         initializeChannels();
     }
 
     // region Channels
 
-    void initializeChannels() {
+    void initializeChannels() throws Exception {
         storeProvider.getChannels().forEach(channelInfo -> {
             Channel channel = new Channel(channelInfo);
             channel.storeProvider = storeProvider;
@@ -46,7 +54,7 @@ public class Storage {
         return channels.getOrDefault(name, null);
     }
 
-    public Channel registrationChannel(String name) {
+    public Channel registrationChannel(String name) throws IOException {
         Channel channel;
         if ((channel = getChannel(name)) == null) {
             channels.put(name.toLowerCase(), channel = new Channel(storeProvider.channelRegistration(name)));

@@ -27,7 +27,7 @@ public class PackagesController extends BaseController {
     static final Logger logger = LoggerFactory.getLogger(PackagesController.class);
 
     @GetMapping("packages")
-    public ResponseEntity<List<StoredPackageInfo>> packageList() throws IOException {
+    public ResponseEntity<List<StoredPackageInfo>> packageList() throws Exception {
         var body = store.getStableChannel().getPackages();
 
         return ResponseEntity
@@ -37,7 +37,7 @@ public class PackagesController extends BaseController {
     }
 
     @GetMapping("packages/{name}")
-    public ResponseEntity<StoredPackageInfo> packageInfo(@PathVariable("name") String packageName) {
+    public ResponseEntity<StoredPackageInfo> packageInfo(@PathVariable("name") String packageName) throws IOException {
         var body = store.getStableChannel().getPackage(packageName);
 
         if (body != null) {
@@ -52,7 +52,7 @@ public class PackagesController extends BaseController {
     }
 
     @GetMapping("packages/{name}/versions")
-    public ResponseEntity<List<StoredVersionInfo>> versions(@PathVariable("name") String packageName) throws IOException {
+    public ResponseEntity<List<StoredVersionInfo>> versions(@PathVariable("name") String packageName) throws Exception {
         var body = store.getStableChannel().getVersions(packageName);
 
         if (body != null) {
@@ -70,7 +70,7 @@ public class PackagesController extends BaseController {
     public ResponseEntity<StoredVersionInfo> packageVersionInfo(@PathVariable("name")
                                                                         String packageName,
                                                                 @PathVariable("version")
-                                                                        String version) {
+                                                                        String version) throws IOException {
         var body = store.getStableChannel().getVersion(packageName, version);
 
         if (body != null) {

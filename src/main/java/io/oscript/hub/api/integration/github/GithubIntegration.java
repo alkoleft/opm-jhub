@@ -1,8 +1,8 @@
 package io.oscript.hub.api.integration.github;
 
-import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.integration.PackagesSource;
 import io.oscript.hub.api.storage.Channel;
+import io.oscript.hub.api.storage.JSONSettingsProvider;
 import io.oscript.hub.api.storage.Storage;
 import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.JSON;
@@ -32,7 +32,7 @@ public class GithubIntegration implements PackagesSource {
     Storage store;
 
     @Autowired
-    HubConfiguration appConfig;
+    JSONSettingsProvider settings;
 
     Channel mainChannel;
 
@@ -40,30 +40,25 @@ public class GithubIntegration implements PackagesSource {
     List<Repository> repositories;
 
     @PostConstruct
-    public void init() throws IOException {
+    public void initialize() throws IOException {
         logger.info("Загрузка настроек");
-        var stream = appConfig.getConfiguration("github");
-        if (stream == null) {
-            config = new GithubConfig();
-        } else {
-            config = JSON.deserialize(stream, GithubConfig.class);
-            stream.close();
-        }
 
-        mainChannel = store.registrationChannel(config.channel);
+        config = settings.getConfiguration("github", GithubConfig.class);
+        if (config == null) {
+            config = new GithubConfig();
+        }
 
         logger.info("Загружены настройки {}", JSON.serialize(config));
 
-        stream = appConfig.getConfiguration("repositories");
-        if (stream != null) {
-            repositories = JSON.deserializeList(stream, Repository.class);
-            stream.close();
-        }
-
+        logger.info("Загрузка списка найденных репозиториев");
+        repositories = settings.getConfigurationList("repositories", Repository.class);
         if (repositories == null) {
             repositories = new ArrayList<>();
         }
+
         repositories.forEach(repository -> repository.getReleases().forEach(release -> release.repository = repository));
+
+        mainChannel = store.registrationChannel(config.channel);
 
         logger.info("Загружен список репозиториев, {} репозиториев", repositories.size());
 
@@ -143,7 +138,7 @@ public class GithubIntegration implements PackagesSource {
     }
 
     private boolean saveRepositories() {
-        return appConfig.saveConfiguration("repositories", repositories);
+        return settings.saveConfiguration("repositories", repositories);
     }
 
     private Stream<Repository> findNewRepositories(GHPerson person) {

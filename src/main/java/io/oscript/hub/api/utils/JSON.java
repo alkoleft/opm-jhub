@@ -36,18 +36,18 @@ public class JSON {
         return mapper().readValue(stream, type);
     }
 
-    public static <T> T deserialize(Path path, Class<T> type) {
+    public static <T> T deserialize(Path path, Class<T> type) throws IOException {
         if (Files.notExists(path))
             return null;
         try {
             return mapper().readValue(path.toFile(), type);
         } catch (IOException ex) {
             logger.error("Ошибка разбора json файла " + path.toString(), ex);
-            return null;
+            throw ex;
         }
     }
 
-    public static <T> List<T> deserializeList(Path path, Class<T> type) {
+    public static <T> List<T> deserializeList(Path path, Class<T> type) throws IOException {
         if (Files.notExists(path))
             return null;
         try {
@@ -58,7 +58,7 @@ public class JSON {
             return mapper.readValue(path.toFile(), collectionType);
         } catch (IOException ex) {
             logger.error("Ошибка чтения разбора файла " + path.toString(), ex);
-            return null;
+            throw ex;
         }
     }
 

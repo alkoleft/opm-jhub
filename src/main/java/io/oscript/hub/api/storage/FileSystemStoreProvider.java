@@ -1,76 +1,81 @@
 package io.oscript.hub.api.storage;
 
-import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.data.IPackageMetadata;
 import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 
 import javax.annotation.PostConstruct;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class FileSystemStoreProvider implements IStoreProvider {
 
     static final Logger logger = LoggerFactory.getLogger(FileSystemStoreProvider.class);
 
+    static String channelJSON = "channel.json";
     static String packageJSON = "package.json";
     static String versionJSON = "version.json";
 
-    @Autowired
-    public HubConfiguration configuration;
-
-    List<ChannelInfo> channels;
+    @Value("${hub.workpath}")
+    private Path workPath;
 
     @PostConstruct
     public void init() {
-        loadStoredChannels();
+        createPath(getWorkPath());
     }
 
     // region Channels
     @Override
-    public List<ChannelInfo> getChannels() {
-        return channels;
+    public List<ChannelInfo> getChannels() throws Exception {
+        return loadMetadata(getWorkPath(), channelJSON, ChannelInfo.class);
     }
 
     @Override
-    public ChannelInfo getChannel(String name) {
-        return channels.stream()
-                .filter(channel -> channel.name.equalsIgnoreCase(name))
-                .findFirst()
-                .orElse(null);
+    public ChannelInfo getChannel(String name) throws IOException {
+        Path path = getChannelPath(name);
+
+        if (!pathFilter(path, channelJSON))
+            return null;
+
+        return JSON.deserialize(path.resolve(channelJSON), ChannelInfo.class);
     }
 
     @Override
-    public ChannelInfo channelRegistration(String name) {
+    public ChannelInfo channelRegistration(String name) throws IOException {
         return channelRegistration(name, false);
     }
 
-    public ChannelInfo channelRegistration(String name, boolean isDefault) {
-        ChannelInfo result;
-        if (null == (result = getChannel(name))) {
-            channels.add(result = new ChannelInfo(name, isDefault));
-            saveChannel(result);
+    public ChannelInfo channelRegistration(String name, boolean isDefault) throws IOException {
+        ChannelInfo channelInfo;
+        if (null == (channelInfo = getChannel(name))) {
+            channelInfo = new ChannelInfo(name, isDefault);
+            saveChannel(channelInfo);
         }
-        return result;
+        return channelInfo;
     }
 
     @Override
-    public boolean saveChannel(ChannelInfo channel) {
-        try {
-            JSON.serialize(channels, pathStoredChannels());
-            return true;
-        } catch (IOException e) {
-            logger.error("Ошибка сохранения списка каналов", e);
-            return false;
-        }
+    public void saveChannel(ChannelInfo channel) throws IOException {
+        Path channelPath = getChannelPath(channel.name);
+        createPath(channelPath);
+        JSON.serialize(channel, channelPath.resolve(channelJSON));
+    }
+
+    @Override
+    public boolean existChannel(String name) {
+        Path path = getChannelPath(name);
+
+        return pathFilter(path, channelJSON);
     }
 
     // endregion Channels
@@ -78,26 +83,46 @@ public class FileSystemStoreProvider implements IStoreProvider {
     // region Packages
 
     @Override
-    public List<StoredPackageInfo> getPackages(String channelName) throws IOException {
-        Path channelPath = getChannelPath(channelName);
-
-        createPath(channelPath);
-
-        return Files.list(channelPath)
-                .filter(path -> pathFilter(path, packageJSON))
-                .map(path -> JSON.deserialize(path.resolve(packageJSON), StoredPackageInfo.class))
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public StoredPackageInfo getPackage(String channel, String packageName) {
-        Path path = getPackagePath(packageName, channel);
-
-        if (!pathFilter(path, packageJSON)) {
+    public List<StoredPackageInfo> getPackages(String channel) throws Exception {
+        if (!existChannel(channel)) {
             return null;
         }
 
+        Path channelPath = getChannelPath(channel);
+
+        return loadMetadata(channelPath, packageJSON, StoredPackageInfo.class);
+    }
+
+    @Override
+    public StoredPackageInfo getPackage(String channel, String name) throws IOException {
+        if (!existPackage(channel, name)) {
+            return null;
+        }
+
+        Path path = getPackagePath(name, channel);
+
         return JSON.deserialize(path.resolve(packageJSON), StoredPackageInfo.class);
+    }
+
+    @Override
+    public boolean existPackage(String channel, String name) {
+        Path path = getPackagePath(name, channel);
+
+        return pathFilter(path, packageJSON);
+    }
+
+    @Override
+    public boolean savePackage(String channel, StoredPackageInfo pack) {
+        Path packagePath = getPackagePath(pack.getName(), channel);
+        createPath(packagePath);
+
+        try {
+            JSON.serialize(pack, packagePath.resolve(packageJSON));
+            return true;
+        } catch (IOException e) {
+            logger.error("Ошибка сохранения метаданных пакета", e);
+            return false;
+        }
     }
 
     // endregion Packages
@@ -105,39 +130,46 @@ public class FileSystemStoreProvider implements IStoreProvider {
     //region Versions
 
     @Override
-    public List<StoredVersionInfo> getVersions(String channel, String name) throws IOException {
+    public List<StoredVersionInfo> getVersions(String channel, String name) throws Exception {
+
+        if (!existPackage(channel, name)) {
+            return null;
+        }
+
         Path packagePath = getPackagePath(name, channel);
-        return Files.list(packagePath)
-                .filter(path -> pathFilter(path, versionJSON))
-                .map(path -> JSON.deserialize(path.resolve(versionJSON), StoredVersionInfo.class))
-                .collect(Collectors.toList());
+
+        return loadMetadata(packagePath, versionJSON, StoredVersionInfo.class);
     }
 
     @Override
-    public StoredVersionInfo getVersion(String channel, String name, String version) {
-        Path path = getVersionPath(name, version, channel);
-
-        if (!pathFilter(path, versionJSON))
+    public StoredVersionInfo getVersion(String channel, String name, String version) throws IOException {
+        if (!existVersion(channel, name, version)) {
             return null;
+        }
+
+        Path path = getVersionPath(name, version, channel);
 
         return JSON.deserialize(path.resolve(versionJSON), StoredVersionInfo.class);
     }
 
-    //endregion
+    @Override
+    public boolean existVersion(String channel, String name, String version) {
+        Path path = getVersionPath(name, version, channel);
+
+        return pathFilter(path, versionJSON) && Files.exists(path.resolve(Common.packageFileName(name, version)));
+    }
 
     @Override
     public byte[] getPackageData(String channel, String name, String version) throws IOException {
-        Path path = getVersionPath(name, version, channel);
-        Path file = path.resolve(Common.packageFileName(name, version));
-
-        if (Files.exists(file)) {
-            return Files.readAllBytes(file);
-        } else {
+        if (!existVersion(channel, name, version)) {
             return null;
         }
-    }
 
-    // region save
+        Path path = getVersionPath(name, version, channel);
+        String packageFileName = Common.packageFileName(name, version);
+
+        return Files.readAllBytes(path.resolve(packageFileName));
+    }
 
     @Override
     public boolean saveVersion(SavingPackage pack) {
@@ -158,34 +190,6 @@ public class FileSystemStoreProvider implements IStoreProvider {
         }
     }
 
-    @Override
-    public boolean existVersion(String channel, String name, String version) {
-        Path path = getVersionPath(name, version, channel);
-
-        return pathFilter(path, versionJSON) && Files.exists(path.resolve(Common.packageFileName(name, version)));
-    }
-
-    @Override
-    public boolean savePackage(String channel, StoredPackageInfo pack) {
-        Path packagePath = getPackagePath(pack.getName(), channel);
-        createPath(packagePath);
-
-        try {
-            JSON.serialize(pack, packagePath.resolve(packageJSON));
-            return true;
-        } catch (IOException e) {
-            logger.error("Ошибка сохранения метаданных пакета", e);
-            return false;
-        }
-    }
-
-    @Override
-    public boolean existPackage(String channel, String name) {
-        Path path = getPackagePath(name, channel);
-
-        return pathFilter(path, packageJSON);
-    }
-
     public boolean saveVersionBin(SavingPackage pack) {
         Path versionPath = getVersionPath(pack.getName(), pack.getVersion(), pack.getChannel());
         createPath(versionPath);
@@ -200,41 +204,45 @@ public class FileSystemStoreProvider implements IStoreProvider {
             return false;
         }
     }
-    
-    public void loadStoredChannels() {
-        channels = JSON.deserializeList(pathStoredChannels(), ChannelInfo.class);
-
-        if (channels == null) {
-            channels = new ArrayList<>();
-            channelRegistration("stable", true);
-        }
-    }
 
     // endregion
 
-    boolean pathFilter(Path path, String metadataFile) {
-        return Files.exists(path)
-                && Files.isDirectory(path)
-                && !Files.isSymbolicLink(path)
-                && Files.exists(path.resolve(metadataFile));
+    <T> List<T> loadMetadata(Path itemsPath, String metadataFile, Class<T> type) throws Exception {
+        Map<Path, Exception> exceptions = new LinkedHashMap<>();
+
+        List<T> items = Files.list(itemsPath)
+                .filter(path -> pathFilter(path, metadataFile))
+                .map(path -> {
+                    try {
+                        return JSON.deserialize(path.resolve(metadataFile), type);
+                    } catch (IOException e) {
+                        exceptions.put(path, e);
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        exceptions.forEach((path, e) -> logger.error("Ошибка чтения " + path, e));
+
+        if (items.size() == 0 && exceptions.size() > 0) {
+            throw new Exception("Не удалось загрузить " + type.getSimpleName());
+        }
+        return items;
     }
 
     // region paths
 
     protected Path getWorkPath() {
-        return configuration.getStorePath();
-    }
-
-    protected Path pathStoredChannels() {
-        return configuration.getSettingsPath().resolve("channels.json");
+        return workPath.resolve("store");
     }
 
     protected Path getChannelPath(String channel) {
-        return createPath(getWorkPath().resolve(channel));
+        return getWorkPath().resolve(channel);
     }
 
     protected Path getPackagePath(String packageName, String channel) {
-        return createPath(getChannelPath(channel).resolve(packageName));
+        return getChannelPath(channel).resolve(packageName);
     }
 
     protected Path getVersionPath(IPackageMetadata packageInfo, String channel) {
@@ -247,7 +255,7 @@ public class FileSystemStoreProvider implements IStoreProvider {
                 .resolve(packageName)
                 .resolve(version);
 
-        return createPath(path);
+        return path;
     }
 
     protected Path createPath(Path path) {
@@ -259,6 +267,13 @@ public class FileSystemStoreProvider implements IStoreProvider {
             }
         }
         return path;
+    }
+
+    boolean pathFilter(Path path, String metadataFile) {
+        return Files.exists(path)
+                && Files.isDirectory(path)
+                && !Files.isSymbolicLink(path)
+                && Files.exists(path.resolve(metadataFile));
     }
 
     //endregion

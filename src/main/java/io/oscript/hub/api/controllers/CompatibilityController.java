@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 public class CompatibilityController extends BaseController {
     @GetMapping("download/list.txt")
-    public ResponseEntity<String> packageListTXT(@RequestHeader HttpHeaders headers) throws IOException {
+    public ResponseEntity<String> packageListTXT(@RequestHeader HttpHeaders headers) throws Exception {
         RequestParameters parameters = getRequestParameters(headers);
         Channel channel = store.getChannel(parameters.getChannel());
         var packages = channel.getPackages();
