@@ -7,9 +7,6 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -36,6 +33,10 @@ public class Storage {
             channel.storeProvider = storeProvider;
             channels.put(channelInfo.name.toLowerCase(), channel);
         });
+
+        if (channels.size() == 0) {
+            registrationChannel("stable");
+        }
     }
 
     public Channel[] getChannels() {

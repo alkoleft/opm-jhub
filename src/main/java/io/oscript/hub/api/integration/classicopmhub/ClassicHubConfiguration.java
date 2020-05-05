@@ -12,7 +12,7 @@ public class ClassicHubConfiguration {
 
     static ClassicHubConfiguration defaultConfiguration() {
         ClassicHubConfiguration conf = new ClassicHubConfiguration();
-        conf.channel = "opm-mirror";
+        conf.channel = "stable";
         conf.servers.add("http://hub.oscript.io");
         conf.servers.add("http://hub.oscript.ru");
 
