@@ -15,4 +15,7 @@ public class Version implements VersionBase {
         this.packageID = packageID;
     }
 
+    String fullName() {
+        return String.format("%s@%s", packageID, version);
+    }
 }

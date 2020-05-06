@@ -69,6 +69,7 @@ dependencies {
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
 
     compile group: 'org.kohsuke', name: 'github-api', version: '1.111'
+    compile group: 'commons-io', name: 'commons-io', version: '2.6'
 
     // endregion
 

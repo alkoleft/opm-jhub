@@ -37,7 +37,7 @@ public class JSON {
         try {
             return mapper().readValue(path.toFile(), type);
         } catch (IOException ex) {
-            logger.error("Ошибка разбора json файла " + path.toString(), ex);
+            logger.error(String.format("Ошибка разбора json файла %s", path), ex);
             throw ex;
         }
     }
@@ -52,7 +52,7 @@ public class JSON {
 
             return mapper.readValue(path.toFile(), collectionType);
         } catch (IOException ex) {
-            logger.error("Ошибка чтения разбора файла " + path.toString(), ex);
+            logger.error(String.format("Ошибка чтения разбора файла %s", path), ex);
             throw ex;
         }
     }

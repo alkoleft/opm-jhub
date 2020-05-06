@@ -25,8 +25,8 @@ import java.util.stream.Stream;
 @Service
 public class GithubIntegration implements PackagesSource {
 
-    final static Logger logger = LoggerFactory.getLogger(GithubIntegration.class);
-    static GitHub client;
+    private static final Logger logger = LoggerFactory.getLogger(GithubIntegration.class);
+    private GitHub client;
 
     @Autowired
     Storage store;
@@ -121,9 +121,9 @@ public class GithubIntegration implements PackagesSource {
         for (Repository rep : repositories) {
             var newReleases = loadReleases(rep);
 
-            needSave |= newReleases.size() > 0;
+            needSave |= !newReleases.isEmpty();
 
-            if (newReleases.size() > 0) {
+            if (!newReleases.isEmpty()) {
                 logger.info("Новые релизы для {}\n{}", rep.getFullName(),
                         String.join("\t\t\n", newReleases.stream().map(Release::getVersion).toArray(CharSequence[]::new)));
             }

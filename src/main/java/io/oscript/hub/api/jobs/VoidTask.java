@@ -7,7 +7,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 @EnableAsync
-public class VoidTask extends SimpleTask<Void> {
+public class VoidTask implements SimpleTask<Void> {
 
     private final PackagesSource worker;
 

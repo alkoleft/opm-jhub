@@ -81,7 +81,7 @@ public class BaseController {
     }
 
     <T> T firstOrNull(List<T> items) {
-        if (items == null || items.size() == 0)
+        if (items == null || items.isEmpty())
             return null;
         else
             return items.get(0);

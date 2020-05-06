@@ -36,8 +36,8 @@ public class Naming {
     public static boolean isInvalid(String value) {
         for (String specChar : specialChars) {
             if (value.contains(specChar))
-                return false;
+                return true;
         }
-        return true;
+        return false;
     }
 }

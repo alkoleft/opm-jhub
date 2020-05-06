@@ -2,37 +2,46 @@ package io.oscript.hub.api.ospx;
 
 import io.oscript.hub.api.utils.XML;
 import io.oscript.hub.api.utils.ZIP;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
 public class OspxPackage {
-    public static final String metadataName = "opm-metadata.xml";
-    public static final String contentName = "content.zip";
+    private static final Logger logger = LoggerFactory.getLogger(OspxPackage.class);
+
+    public static final String METADATA_XML = "opm-metadata.xml";
+    public static final String CONTENT_ZIP = "content.zip";
 
     ByteArrayInputStream packageRaw;
     ByteArrayInputStream metadataRaw;
     ByteArrayInputStream contentRaw;
     Metadata metadata;
 
-    public static OspxPackage parse(byte[] binary) throws IOException {
+    public static OspxPackage parse(byte[] binary) {
 
-        OspxPackage packageData = new OspxPackage();
+        try {
+            OspxPackage packageData = new OspxPackage();
 
-        packageData.packageRaw = new ByteArrayInputStream(binary);
-        var contentMap = ZIP.unPuck(packageData.packageRaw);
+            packageData.packageRaw = new ByteArrayInputStream(binary);
+            var contentMap = ZIP.unPuck(packageData.packageRaw);
 
-        packageData.contentRaw = new ByteArrayInputStream(contentMap.get(contentName));
-        packageData.metadataRaw = new ByteArrayInputStream(contentMap.get(metadataName));
+            packageData.contentRaw = new ByteArrayInputStream(contentMap.get(CONTENT_ZIP));
+            packageData.metadataRaw = new ByteArrayInputStream(contentMap.get(METADATA_XML));
 
-        packageData.metadata = XML.deserialize(packageData.metadataRaw, Metadata.class);
+            packageData.metadata = XML.deserialize(packageData.metadataRaw, Metadata.class);
 
-        return packageData;
+            return packageData;
+        } catch (Exception e) {
+            logger.error("Ошибка разбора пакета", e);
+            return null;
+        }
     }
 
     public static OspxPackage parse(InputStream stream) throws IOException {
-       return parse(stream.readAllBytes());
+        return parse(stream.readAllBytes());
     }
 
     public ByteArrayInputStream getPackageRaw() {

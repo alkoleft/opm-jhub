@@ -37,7 +37,7 @@ public class TaskRunner {
         boolean alreadyRunning = task.isRunning();
         try {
             task.run();
-        } catch (JobAlreadyExecuting ignored) {
+        } catch (JobAlreadyExecuting e) {
             alreadyRunning = true;
         }
         var status = task.getStatus();

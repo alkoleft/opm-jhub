@@ -21,32 +21,32 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     static final Logger logger = LoggerFactory.getLogger(FileSystemStoreProvider.class);
 
-    private static final String channelJSON = "channel.json";
-    private static final String packageJSON = "package.json";
-    private static final String versionJSON = "version.json";
+    private static final String CHANNEL_JSON = "channel.json";
+    private static final String PACKAGE_JSON = "package.json";
+    private static final String VERSION_JSON = "version.json";
 
     @Value("${hub.workpath}")
     private Path workPath;
 
     @PostConstruct
     public void init() {
-        createPath(getWorkPath());
+        Common.createPath(getWorkPath());
     }
 
     // region Channels
     @Override
     public List<ChannelInfo> getChannels() throws Exception {
-        return loadMetadata(getWorkPath(), channelJSON, ChannelInfo.class);
+        return loadMetadata(getWorkPath(), CHANNEL_JSON, ChannelInfo.class);
     }
 
     @Override
     public ChannelInfo getChannel(String name) throws IOException {
         Path path = getChannelPath(name);
 
-        if (!pathFilter(path, channelJSON))
+        if (!pathFilter(path, CHANNEL_JSON))
             return null;
 
-        return JSON.deserialize(path.resolve(channelJSON), ChannelInfo.class);
+        return JSON.deserialize(path.resolve(CHANNEL_JSON), ChannelInfo.class);
     }
 
     @Override
@@ -63,15 +63,15 @@ public class FileSystemStoreProvider implements IStoreProvider {
     @Override
     public void saveChannel(ChannelInfo channel) throws IOException {
         Path channelPath = getChannelPath(channel.name);
-        createPath(channelPath);
-        JSON.serialize(channel, channelPath.resolve(channelJSON));
+        Common.createPath(channelPath);
+        JSON.serialize(channel, channelPath.resolve(CHANNEL_JSON));
     }
 
     @Override
     public boolean existChannel(String name) {
         Path path = getChannelPath(name);
 
-        return pathFilter(path, channelJSON);
+        return pathFilter(path, CHANNEL_JSON);
     }
 
     // endregion Channels
@@ -81,12 +81,12 @@ public class FileSystemStoreProvider implements IStoreProvider {
     @Override
     public List<StoredPackageInfo> getPackages(String channel) throws Exception {
         if (!existChannel(channel)) {
-            return null;
+            return List.of();
         }
 
         Path channelPath = getChannelPath(channel);
 
-        return loadMetadata(channelPath, packageJSON, StoredPackageInfo.class);
+        return loadMetadata(channelPath, PACKAGE_JSON, StoredPackageInfo.class);
     }
 
     @Override
@@ -97,23 +97,23 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
         Path path = getPackagePath(name, channel);
 
-        return JSON.deserialize(path.resolve(packageJSON), StoredPackageInfo.class);
+        return JSON.deserialize(path.resolve(PACKAGE_JSON), StoredPackageInfo.class);
     }
 
     @Override
     public boolean existPackage(String channel, String name) {
         Path path = getPackagePath(name, channel);
 
-        return pathFilter(path, packageJSON);
+        return pathFilter(path, PACKAGE_JSON);
     }
 
     @Override
     public void savePackage(String channel, StoredPackageInfo pack) {
         Path packagePath = getPackagePath(pack.getName(), channel);
-        createPath(packagePath);
+        Common.createPath(packagePath);
 
         try {
-            JSON.serialize(pack, packagePath.resolve(packageJSON));
+            JSON.serialize(pack, packagePath.resolve(PACKAGE_JSON));
         } catch (IOException e) {
             logger.error("Ошибка сохранения метаданных пакета", e);
         }
@@ -132,7 +132,7 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
         Path packagePath = getPackagePath(name, channel);
 
-        return loadMetadata(packagePath, versionJSON, StoredVersionInfo.class);
+        return loadMetadata(packagePath, VERSION_JSON, StoredVersionInfo.class);
     }
 
     @Override
@@ -143,14 +143,14 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
         Path path = getVersionPath(name, version, channel);
 
-        return JSON.deserialize(path.resolve(versionJSON), StoredVersionInfo.class);
+        return JSON.deserialize(path.resolve(VERSION_JSON), StoredVersionInfo.class);
     }
 
     @Override
     public boolean existVersion(String channel, String name, String version) {
         Path path = getVersionPath(name, version, channel);
 
-        return pathFilter(path, versionJSON) && Files.exists(path.resolve(Common.packageFileName(name, version)));
+        return pathFilter(path, VERSION_JSON) && Files.exists(path.resolve(Common.packageFileName(name, version)));
     }
 
     @Override
@@ -174,9 +174,9 @@ public class FileSystemStoreProvider implements IStoreProvider {
     public boolean saveVersion(String channel, StoredVersionInfo storedVersion) {
         Path versionPath = getVersionPath(storedVersion.getMetadata(), channel);
 
+        Common.createPath(versionPath);
         try {
-            Files.createDirectories(versionPath);
-            JSON.serialize(storedVersion, versionPath.resolve(versionJSON));
+            JSON.serialize(storedVersion, versionPath.resolve(VERSION_JSON));
             return true;
         } catch (IOException e) {
             logger.error("Ошибка сохранения информации о версии", e);
@@ -186,16 +186,26 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     public boolean saveVersionBin(SavingPackage pack) {
         Path versionPath = getVersionPath(pack.getName(), pack.getVersion(), pack.getChannel());
-        createPath(versionPath);
+        Common.createPath(versionPath);
 
         Path versionBin = versionPath.resolve(Common.packageFileName(pack.getPackageData().getMetadata()));
+        FileOutputStream out = null;
+
         try {
-            FileOutputStream out = new FileOutputStream(versionBin.toFile());
+            out = new FileOutputStream(versionBin.toFile());
             pack.getPackageData().getPackageRaw().transferTo(out);
             return true;
         } catch (Exception e) {
-            logger.error("Ошибка записи " + versionBin.toString(), e);
+            logger.error(String.format("Ошибка записи %s", versionBin), e);
             return false;
+        } finally {
+            if (out != null) {
+                try {
+                    out.close();
+                } catch (IOException e) {
+                    logger.error(String.format("Закрытия потока записи в %s", versionBin), e);
+                }
+            }
         }
     }
 
@@ -203,23 +213,25 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     <T> List<T> loadMetadata(Path itemsPath, String metadataFile, Class<T> type) throws Exception {
         Map<Path, Exception> exceptions = new LinkedHashMap<>();
+        List<T> items;
+        try (var list = Files.list(itemsPath)) {
+            items = list
+                    .filter(path -> pathFilter(path, metadataFile))
+                    .map(path -> {
+                        try {
+                            return JSON.deserialize(path.resolve(metadataFile), type);
+                        } catch (IOException e) {
+                            exceptions.put(path, e);
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        }
 
-        List<T> items = Files.list(itemsPath)
-                .filter(path -> pathFilter(path, metadataFile))
-                .map(path -> {
-                    try {
-                        return JSON.deserialize(path.resolve(metadataFile), type);
-                    } catch (IOException e) {
-                        exceptions.put(path, e);
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+        exceptions.forEach((path, e) -> logger.error(String.format("Ошибка чтения %s", path), e));
 
-        exceptions.forEach((path, e) -> logger.error("Ошибка чтения " + path, e));
-
-        if (items.size() == 0 && exceptions.size() > 0) {
+        if (items.isEmpty() && !exceptions.isEmpty()) {
             throw new Exception("Не удалось загрузить " + type.getSimpleName());
         }
         return items;
@@ -249,16 +261,6 @@ public class FileSystemStoreProvider implements IStoreProvider {
                 .resolve(channel)
                 .resolve(packageName)
                 .resolve(version);
-    }
-
-    protected void createPath(Path path) {
-        if (Files.notExists(path)) {
-            try {
-                Files.createDirectories(path);
-            } catch (IOException e) {
-                logger.error("Ошибка создания каталога " + path.toAbsolutePath(), e);
-            }
-        }
     }
 
     boolean pathFilter(Path path, String metadataFile) {

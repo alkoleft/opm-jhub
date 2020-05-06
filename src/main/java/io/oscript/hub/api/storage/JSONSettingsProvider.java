@@ -1,6 +1,9 @@
 package io.oscript.hub.api.storage;
 
+import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.JSON;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
@@ -10,6 +13,8 @@ import java.util.List;
 
 public class JSONSettingsProvider {
 
+    private static final Logger logger = LoggerFactory.getLogger(JSONSettingsProvider.class);
+
     @Value("${hub.workpath}")
     private Path workPath;
 
@@ -17,14 +22,7 @@ public class JSONSettingsProvider {
 
     public Path getSettingsPath() {
         Path path = workPath.resolve("settings");
-        if (Files.notExists(path)) {
-
-            try {
-                Files.createDirectories(path);
-            } catch (IOException ignored) {
-            }
-
-        }
+        Common.createPath(path);
 
         return path;
     }
@@ -57,7 +55,7 @@ public class JSONSettingsProvider {
             JSON.serialize(configuration, path);
             return true;
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(String.format("Ошибка сохранения настроек %s", name), e);
             return false;
         }
     }

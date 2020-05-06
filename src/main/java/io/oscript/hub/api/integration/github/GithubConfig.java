@@ -14,8 +14,4 @@ public class GithubConfig {
     ForkStrategy ifFork;
     List<String> organizations = new ArrayList<>();
     List<String> users = new ArrayList<>();
-    List<String> repositories = new ArrayList<>();
-
-    public GithubConfig() {
-    }
 }

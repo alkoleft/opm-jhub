@@ -37,7 +37,7 @@ public class Storage {
             channels.put(channelInfo.name.toLowerCase(), channel);
         });
 
-        if (channels.size() == 0) {
+        if (channels.isEmpty()) {
             registrationChannel("stable");
         }
     }

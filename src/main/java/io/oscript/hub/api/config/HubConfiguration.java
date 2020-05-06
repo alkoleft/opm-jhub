@@ -1,10 +1,9 @@
 package io.oscript.hub.api.config;
 
+import io.oscript.hub.api.utils.Common;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 @Component
@@ -22,14 +21,7 @@ public class HubConfiguration {
 
     public Path getSettingsPath() {
         Path path = getWorkPath().resolve("settings");
-        if (Files.notExists(path)) {
-
-            try {
-                Files.createDirectories(path);
-            } catch (IOException ignored) {
-            }
-
-        }
+        Common.createPath(path);
 
         return path;
     }

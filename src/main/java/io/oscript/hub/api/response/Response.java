@@ -7,8 +7,8 @@ import java.time.LocalDateTime;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Response {
 
-    public static Response errorResult(String error_message) {
-        return new ErrorResponse(error_message);
+    public static Response errorResult(String errorMessage) {
+        return new ErrorResponse(errorMessage);
     }
 
     public static Response errorResult(Exception e) {
