@@ -9,7 +9,7 @@ import java.util.concurrent.CompletionException;
 @EnableAsync
 public class VoidTask extends SimpleTask<Void> {
 
-    PackagesSource worker;
+    private final PackagesSource worker;
 
     public VoidTask(PackagesSource worker) {
         this.worker = worker;

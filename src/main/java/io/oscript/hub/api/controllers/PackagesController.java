@@ -3,8 +3,6 @@ package io.oscript.hub.api.controllers;
 import io.oscript.hub.api.response.Response;
 import io.oscript.hub.api.storage.StoredPackageInfo;
 import io.oscript.hub.api.storage.StoredVersionInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,8 +21,6 @@ import java.util.List;
 
 @RestController
 public class PackagesController extends BaseController {
-
-    static final Logger logger = LoggerFactory.getLogger(PackagesController.class);
 
     @GetMapping("packages")
     public ResponseEntity<List<StoredPackageInfo>> packageList() throws Exception {

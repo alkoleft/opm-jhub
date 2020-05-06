@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -30,10 +29,6 @@ public class JSON {
 
     public static void serialize(Object object, Path file) throws IOException {
         mapper().writeValue(file.toFile(), object);
-    }
-
-    public static <T> T deserialize(InputStream stream, Class<T> type) throws IOException {
-        return mapper().readValue(stream, type);
     }
 
     public static <T> T deserialize(Path path, Class<T> type) throws IOException {
@@ -61,20 +56,4 @@ public class JSON {
             throw ex;
         }
     }
-
-    public static <T> List<T> deserializeList(InputStream stream, Class<T> type) {
-
-        if (stream == null)
-            return null;
-        try {
-            ObjectMapper mapper = mapper();
-            CollectionType collectionType = mapper.getTypeFactory()
-                    .constructCollectionType(List.class, type);
-            return mapper.readValue(stream, collectionType);
-        } catch (IOException ex) {
-            logger.error("Ошибка разбора потока для коллекции " + type.getSimpleName(), ex);
-            return null;
-        }
-    }
-
 }

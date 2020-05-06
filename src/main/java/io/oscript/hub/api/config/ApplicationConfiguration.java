@@ -11,8 +11,7 @@ public class ApplicationConfiguration {
 
     @Bean
     public IStoreProvider getStore() {
-        var store = new FileSystemStoreProvider();
-        return store;
+        return new FileSystemStoreProvider();
     }
 
     @Bean

@@ -19,7 +19,7 @@ public class StoredVersionInfo {
 
     public static StoredVersionInfo create(SavingPackage pack) {
 
-        io.oscript.hub.api.ospx.Metadata metadata = pack.packageData.getMetadata();
+        io.oscript.hub.api.ospx.Metadata metadata = pack.getPackageData().getMetadata();
 
         StoredVersionInfo storedVersion = new StoredVersionInfo();
 
@@ -32,7 +32,7 @@ public class StoredVersionInfo {
         storedVersion.metadata.setDescription(metadata.getDescription());
         storedVersion.metadata.setDependencies(metadata.getDependencies());
 
-        storedVersion.source = pack.sourceInfo;
+        storedVersion.source = pack.getSourceInfo();
         storedVersion.saveData = new Date();
 
         return storedVersion;

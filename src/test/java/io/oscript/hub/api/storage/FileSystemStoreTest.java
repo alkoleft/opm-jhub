@@ -2,8 +2,6 @@ package io.oscript.hub.api.storage;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 class FileSystemStoreTest {
 
     @Test

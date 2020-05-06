@@ -1,7 +1,6 @@
 package io.oscript.hub.api.storage;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import io.oscript.hub.api.data.IPackageMetadata;
 import io.oscript.hub.api.ospx.DependenceInfo;
 import lombok.Data;
 

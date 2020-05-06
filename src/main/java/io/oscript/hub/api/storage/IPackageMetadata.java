@@ -1,10 +1,14 @@
-package io.oscript.hub.api.data;
+package io.oscript.hub.api.storage;
 
 import io.oscript.hub.api.ospx.DependenceInfo;
 
 import java.util.List;
 
-public interface IPackageMetadata extends VersionInfo {
+public interface IPackageMetadata {
+    String getName();
+
+    String getVersion();
+
     String getEngineVersion();
 
     String getAuthor();

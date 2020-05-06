@@ -1,8 +1,6 @@
 package io.oscript.hub.api.integration.github;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.oscript.hub.api.integration.VersionBase;
-import io.oscript.hub.api.ospx.OspxPackage;
 import io.oscript.hub.api.utils.Common;
 import lombok.Data;
 import org.kohsuke.github.GHRelease;
@@ -18,9 +16,6 @@ public class Release implements VersionBase {
 
     String zipUrl;
     String packageUrl;
-
-    @JsonIgnore
-    Repository repository;
 
     public static Release create(GHRelease ghRelease) {
         Release release = new Release();
@@ -67,10 +62,4 @@ public class Release implements VersionBase {
             version = getVersionFormTag(tag);
         }
     }
-
-    @JsonIgnore
-    public OspxPackage getPackage() {
-        return null;
-    }
-
 }

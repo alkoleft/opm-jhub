@@ -7,19 +7,19 @@ import java.time.LocalDateTime;
 import java.util.concurrent.CompletableFuture;
 
 public class TaskContainer<T> {
-    LocalDateTime startDate;
-    LocalDateTime finishData;
-    Throwable taskException;
-    CompletableFuture<T> future;
-    SimpleTask<T> task;
+    private LocalDateTime startDate;
+    private LocalDateTime finishData;
+    private Throwable taskException;
+    private CompletableFuture<T> future;
+    private final SimpleTask<T> task;
 
-    Logger logger = LoggerFactory.getLogger(TaskContainer.class);
+    private static final Logger logger = LoggerFactory.getLogger(TaskContainer.class);
 
     public TaskContainer(SimpleTask<T> task) {
         this.task = task;
     }
 
-    public CompletableFuture<T> run() throws JobAlreadyExecuting {
+    public void run() throws JobAlreadyExecuting {
 
         logger.info("Попытка запуска задачи");
         if (isRunning()) {
@@ -31,7 +31,6 @@ public class TaskContainer<T> {
         future.handle(this::onComplete);
         logger.info("Задача запущенна");
 
-        return future;
     }
 
     private void beforeStart() {
@@ -50,7 +49,7 @@ public class TaskContainer<T> {
         } else {
             logger.info("Задача завершена с ошибкой", exception);
         }
-        return null;
+        return result;
     }
 
     public JobStatus getStatus() {

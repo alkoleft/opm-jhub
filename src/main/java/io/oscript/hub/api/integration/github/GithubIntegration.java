@@ -56,8 +56,6 @@ public class GithubIntegration implements PackagesSource {
             repositories = new ArrayList<>();
         }
 
-        repositories.forEach(repository -> repository.getReleases().forEach(release -> release.repository = repository));
-
         mainChannel = store.registrationChannel(config.channel);
 
         logger.info("Загружен список репозиториев, {} репозиториев", repositories.size());
@@ -76,7 +74,7 @@ public class GithubIntegration implements PackagesSource {
         return repositories;
     }
 
-    private void findNewRepositories() throws IOException {
+    private void findNewRepositories() {
         logger.info("Поиск репозиториев");
         logger.debug("Формирование списка источников");
         var sources = Stream.concat(
@@ -121,7 +119,7 @@ public class GithubIntegration implements PackagesSource {
         boolean needSave = false;
 
         for (Repository rep : repositories) {
-            var newReleases = loadReleases(rep, true);
+            var newReleases = loadReleases(rep);
 
             needSave |= newReleases.size() > 0;
 
@@ -137,8 +135,8 @@ public class GithubIntegration implements PackagesSource {
             saveRepositories();
     }
 
-    private boolean saveRepositories() {
-        return settings.saveConfiguration("repositories", repositories);
+    private void saveRepositories() {
+        settings.saveConfiguration("repositories", repositories);
     }
 
     private Stream<Repository> findNewRepositories(GHPerson person) {
@@ -149,7 +147,6 @@ public class GithubIntegration implements PackagesSource {
                     .values()
                     .stream()
                     .map(this::analyzeFork)
-                    .filter(Objects::nonNull)
                     .reduce(Stream::concat)
                     .orElseGet(Stream::empty)
                     .filter(ghrep -> !repositoriesKeys.contains(ghrep.getFullName()))
@@ -162,13 +159,12 @@ public class GithubIntegration implements PackagesSource {
         }
     }
 
-    private List<Release> loadReleases(Repository rep, boolean onlyNew) throws IOException {
-        Release lastRelease = null;
-        if (onlyNew) {
-            lastRelease = rep.maxRelease();
-            logger.debug("Загрузка только новых релизов {} (Текущий релиз: {})", rep.getFullName(),
-                    lastRelease == null ? "нет" : lastRelease.getVersion());
-        }
+    private List<Release> loadReleases(Repository rep) throws IOException {
+        Release lastRelease;
+        lastRelease = rep.maxRelease();
+        logger.debug("Загрузка только новых релизов {} (Текущий релиз: {})", rep.getFullName(),
+                lastRelease == null ? "нет" : lastRelease.getVersion());
+
 
         GHRepository repository = getClient().getRepository(rep.getFullName());
 

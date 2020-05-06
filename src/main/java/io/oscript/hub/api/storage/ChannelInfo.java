@@ -9,7 +9,6 @@ import java.util.List;
 @Data
 public class ChannelInfo {
     String name;
-    boolean isDefault;
 
     @JsonIgnore
     List<StoredPackageInfo> packages = new ArrayList<>();
@@ -17,8 +16,7 @@ public class ChannelInfo {
     public ChannelInfo() {
     }
 
-    public ChannelInfo(String name, boolean isDefault) {
+    public ChannelInfo(String name) {
         this.name = name;
-        this.isDefault = isDefault;
     }
 }

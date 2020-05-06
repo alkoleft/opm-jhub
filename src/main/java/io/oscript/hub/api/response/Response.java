@@ -25,9 +25,9 @@ public class Response {
 
     private final LocalDateTime timestamp = LocalDateTime.now();
 
-    private boolean success;
+    private final boolean success;
 
-    private String message;
+    private final String message;
 
     public Response(boolean success, String message) {
         this.success = success;

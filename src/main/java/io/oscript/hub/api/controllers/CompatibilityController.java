@@ -1,6 +1,5 @@
 package io.oscript.hub.api.controllers;
 
-import io.oscript.hub.api.data.RequestParameters;
 import io.oscript.hub.api.response.Response;
 import io.oscript.hub.api.storage.Channel;
 import io.oscript.hub.api.storage.StoredPackageInfo;
@@ -40,7 +39,9 @@ public class CompatibilityController extends BaseController {
             @PathVariable("filename") String filename,
             @RequestHeader HttpHeaders headers) throws IOException {
         if (!filename.startsWith(name)) {
-            return getResponse(Response.errorResult("Не верное имя файла"));
+            return ResponseEntity
+                    .badRequest()
+                    .body(Response.errorResult("Не верное имя файла"));
         } else {
 
             RequestParameters parameters = getRequestParameters(headers);

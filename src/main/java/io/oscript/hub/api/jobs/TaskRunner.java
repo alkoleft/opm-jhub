@@ -13,10 +13,10 @@ import java.util.Map;
 @Configuration
 public class TaskRunner {
 
-    Map<String, TaskContainer<Void>> tasks = new LinkedHashMap<>();
+    private final Map<String, TaskContainer<Void>> tasks = new LinkedHashMap<>();
 
     @Autowired
-    ApplicationContext context;
+    private ApplicationContext context;
 
     @PostConstruct
     public void createTasks() {

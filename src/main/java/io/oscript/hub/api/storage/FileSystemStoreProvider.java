@@ -1,6 +1,5 @@
 package io.oscript.hub.api.storage;
 
-import io.oscript.hub.api.data.IPackageMetadata;
 import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.JSON;
 import org.slf4j.Logger;
@@ -22,9 +21,9 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     static final Logger logger = LoggerFactory.getLogger(FileSystemStoreProvider.class);
 
-    static String channelJSON = "channel.json";
-    static String packageJSON = "package.json";
-    static String versionJSON = "version.json";
+    private static final String channelJSON = "channel.json";
+    private static final String packageJSON = "package.json";
+    private static final String versionJSON = "version.json";
 
     @Value("${hub.workpath}")
     private Path workPath;
@@ -52,17 +51,14 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     @Override
     public ChannelInfo channelRegistration(String name) throws IOException {
-        return channelRegistration(name, false);
-    }
-
-    public ChannelInfo channelRegistration(String name, boolean isDefault) throws IOException {
         ChannelInfo channelInfo;
         if (null == (channelInfo = getChannel(name))) {
-            channelInfo = new ChannelInfo(name, isDefault);
+            channelInfo = new ChannelInfo(name);
             saveChannel(channelInfo);
         }
         return channelInfo;
     }
+
 
     @Override
     public void saveChannel(ChannelInfo channel) throws IOException {
@@ -112,16 +108,14 @@ public class FileSystemStoreProvider implements IStoreProvider {
     }
 
     @Override
-    public boolean savePackage(String channel, StoredPackageInfo pack) {
+    public void savePackage(String channel, StoredPackageInfo pack) {
         Path packagePath = getPackagePath(pack.getName(), channel);
         createPath(packagePath);
 
         try {
             JSON.serialize(pack, packagePath.resolve(packageJSON));
-            return true;
         } catch (IOException e) {
             logger.error("Ошибка сохранения метаданных пакета", e);
-            return false;
         }
     }
 
@@ -173,7 +167,7 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     @Override
     public boolean saveVersion(SavingPackage pack) {
-        return saveVersion(pack.channel, StoredVersionInfo.create(pack));
+        return saveVersion(pack.getChannel(), StoredVersionInfo.create(pack));
     }
 
     @Override
@@ -194,10 +188,10 @@ public class FileSystemStoreProvider implements IStoreProvider {
         Path versionPath = getVersionPath(pack.getName(), pack.getVersion(), pack.getChannel());
         createPath(versionPath);
 
-        Path versionBin = versionPath.resolve(Common.packageFileName(pack.packageData.getMetadata()));
+        Path versionBin = versionPath.resolve(Common.packageFileName(pack.getPackageData().getMetadata()));
         try {
             FileOutputStream out = new FileOutputStream(versionBin.toFile());
-            pack.packageData.getPackageRaw().transferTo(out);
+            pack.getPackageData().getPackageRaw().transferTo(out);
             return true;
         } catch (Exception e) {
             logger.error("Ошибка записи " + versionBin.toString(), e);
@@ -250,15 +244,14 @@ public class FileSystemStoreProvider implements IStoreProvider {
     }
 
     protected Path getVersionPath(String packageName, String version, String channel) {
-        var path = getWorkPath()
+
+        return getWorkPath()
                 .resolve(channel)
                 .resolve(packageName)
                 .resolve(version);
-
-        return path;
     }
 
-    protected Path createPath(Path path) {
+    protected void createPath(Path path) {
         if (Files.notExists(path)) {
             try {
                 Files.createDirectories(path);
@@ -266,7 +259,6 @@ public class FileSystemStoreProvider implements IStoreProvider {
                 logger.error("Ошибка создания каталога " + path.toAbsolutePath(), e);
             }
         }
-        return path;
     }
 
     boolean pathFilter(Path path, String metadataFile) {

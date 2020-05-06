@@ -22,7 +22,7 @@ public class ChannelsController extends BaseController {
     static final Logger logger = LoggerFactory.getLogger(ChannelsController.class);
 
     @GetMapping("/")
-    public ResponseEntity<ChannelInfo[]> list() throws IOException {
+    public ResponseEntity<ChannelInfo[]> list() {
         var body = Arrays.stream(store.getChannels()).map(Channel::getChannelInfo).toArray(ChannelInfo[]::new);
 
         return ResponseEntity

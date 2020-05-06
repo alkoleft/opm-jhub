@@ -1,6 +1,6 @@
 package io.oscript.hub.api.utils;
 
-import io.oscript.hub.api.data.IPackageMetadata;
+import io.oscript.hub.api.storage.IPackageMetadata;
 
 public class Common {
 

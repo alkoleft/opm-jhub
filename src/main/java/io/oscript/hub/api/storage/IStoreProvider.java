@@ -23,7 +23,7 @@ public interface IStoreProvider {
 
     StoredPackageInfo getPackage(String channel, String name) throws IOException;
 
-    boolean savePackage(String channel, StoredPackageInfo pack);
+    void savePackage(String channel, StoredPackageInfo pack);
 
     boolean existPackage(String channel, String name);
 

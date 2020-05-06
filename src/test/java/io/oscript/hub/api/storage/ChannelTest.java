@@ -18,7 +18,7 @@ class ChannelTest {
     @BeforeEach
     void setUp() {
         provider = mock(IStoreProvider.class);
-        channel = new Channel(new ChannelInfo("test", false));
+        channel = new Channel(new ChannelInfo("test"));
         channel.storeProvider = provider;
     }
 

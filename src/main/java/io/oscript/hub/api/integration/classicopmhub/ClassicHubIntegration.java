@@ -23,9 +23,7 @@ import java.net.URI;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -47,8 +45,8 @@ public class ClassicHubIntegration implements PackagesSource {
 
     ClassicHubConfiguration config = new ClassicHubConfiguration();
 
-    private List<Package> packages = new ArrayList<>();
-    private List<Version> versions = new ArrayList<>();
+    private final List<Package> packages = new ArrayList<>();
+    private final List<Version> versions = new ArrayList<>();
 
 
     @PostConstruct
@@ -222,19 +220,19 @@ public class ClassicHubIntegration implements PackagesSource {
         return versions;
     }
 
-    static List<String> versions(Package pack, String serverURL) throws IOException, InterruptedException {
+    static List<String> versions(Package pack, String serverURL) {
 
         return parseVersions(
                 String.format("%s/package/%s", serverURL, pack.name),
-                Pattern.compile("<a.+download\\/(.+)\\/\\1-(.+)\\.ospx\">\\2<\\/a>"),
+                Pattern.compile("<a.+download/(.+)/\\1-(.+)\\.ospx\">\\2</a>"),
                 pack.name);
     }
 
-    static List<String> versionsFromDownload(Package pack, String serverURL) throws IOException, InterruptedException {
+    static List<String> versionsFromDownload(Package pack, String serverURL) {
 
         return parseVersions(
                 String.format("%s/download/%s", serverURL, pack.name),
-                Pattern.compile(">(.+)-(.+)\\.ospx<\\/a>"),
+                Pattern.compile(">(.+)-(.+)\\.ospx</a>"),
                 pack.name);
     }
 
