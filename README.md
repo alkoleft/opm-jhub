@@ -1,5 +1,12 @@
 # opm-jHub
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=alkoleft_opm-jhub&metric=alert_status)](https://sonarcloud.io/dashboard?id=alkoleft_opm-jhub)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=alkoleft_opm-jhub&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=alkoleft_opm-jhub)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=alkoleft_opm-jhub&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=alkoleft_opm-jhub)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=alkoleft_opm-jhub&metric=security_rating)](https://sonarcloud.io/dashboard?id=alkoleft_opm-jhub)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=alkoleft_opm-jhub&metric=coverage)](https://sonarcloud.io/dashboard?id=alkoleft_opm-jhub)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=alkoleft_opm-jhub&metric=ncloc)](https://sonarcloud.io/dashboard?id=alkoleft_opm-jhub)
+
 Java версия хаба для пакетов One Script
 
 ## Основные цели разработки
@@ -75,15 +82,15 @@ Java версия хаба для пакетов One Script
 
     ``` json
     {
-        "token": "ваш api token",
-        "collectPreReleases": true, // Загружать пререлизы
+        "token": "token",
+        "collectPreReleases": true,
         "ifFork": "BOTH",
-        "organizations": [          // Список организаций, репозитории которых, необходимо анализировать
+        "organizations": [
             "oscript-library"
         ],
-        "users": [],                // Список пользователей, репозитории которых, необходимо анализировать
-        "repositories": [],         // Список репозиториев для анализа
-        "channel": "stable"         // Канал, в который необходимо складывать пакеты
+        "users": [],
+        "repositories": [],
+        "channel": "stable"
     }
     ```
 
