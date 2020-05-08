@@ -45,8 +45,8 @@ public class ClassicHubIntegration implements PackagesSource {
 
     ClassicHubConfiguration config = new ClassicHubConfiguration();
 
-    private final List<Package> packages = new ArrayList<>();
-    private final List<Version> versions = new ArrayList<>();
+    final List<Package> packages = new ArrayList<>();
+    final List<Version> versions = new ArrayList<>();
 
 
     @PostConstruct
@@ -56,12 +56,14 @@ public class ClassicHubIntegration implements PackagesSource {
 
         try {
             config = settings.getConfiguration("opm-hub-mirror", ClassicHubConfiguration.class);
-            logger.info(description, JSON.serialize(config));
+            if (config != null)
+                logger.info(description, JSON.serialize(config));
         } catch (Exception e) {
             logger.error(String.format("Ошибка операции: %s", description), e);
         }
 
         if (config == null) {
+            logger.warn("Используются настройки по умолчанию. Не удалось загрузить настройки по ошибке или их просто нет");
             config = ClassicHubConfiguration.defaultConfiguration();
             settings.saveConfiguration("opm-hub-mirror", config);
         }
@@ -83,9 +85,11 @@ public class ClassicHubIntegration implements PackagesSource {
 
         logger.info("Получение списка версий пакетов");
         packages.forEach(aPackage -> {
-            var loadedVersions = loadVersion(aPackage);
-            versions.addAll(loadedVersions);
-            aPackage.versions.addAll(loadedVersions);
+            var loadedVersions = loadVersions(aPackage);
+            if (loadedVersions != null) {
+                versions.addAll(loadedVersions);
+                aPackage.versions.addAll(loadedVersions);
+            }
         });
 
         if (!settings.saveConfiguration("opm-hub-packages", packages)) {
@@ -99,7 +103,7 @@ public class ClassicHubIntegration implements PackagesSource {
     public void downloadPackages() {
         logger.info("Загрузка версий пакетов");
 
-        getVersions().stream()
+        versions.stream()
                 .filter(version -> !mainChannel.containsVersion(version.packageID, version.version))
                 .map(this::downloadVersion)
                 .filter(Objects::nonNull)
@@ -107,17 +111,11 @@ public class ClassicHubIntegration implements PackagesSource {
         logger.info("Загрузка пакетов, которые не содержат версий");
         packages.stream()
                 .filter(aPackage -> aPackage.versions.isEmpty())
-                .map(this::downloadLastVersions)
-                .reduce(Stream::concat)
-                .orElseGet(Stream::empty)
+                .map(this::downloadLastVersion)
                 .filter(Objects::nonNull)
                 .filter(savingPackage -> !mainChannel.containsVersion(savingPackage.getName(), savingPackage.getVersion()))
                 .forEach(mainChannel::pushPackage);
 
-    }
-
-    public List<Version> getVersions() {
-        return versions;
     }
 
     SavingPackage downloadVersion(Version version) {
@@ -137,22 +135,21 @@ public class ClassicHubIntegration implements PackagesSource {
         return savingPackage;
     }
 
-    Stream<SavingPackage> downloadLastVersions(Package pack) {
-        List<SavingPackage> savingPackages = new ArrayList<>();
+    SavingPackage downloadLastVersion(Package pack) {
 
         for (String server : config.getServers()) {
             SavingPackage savingPackage = downloadVersion(
-                    MessageFormat.format("{0}}/download/{1}/{1}.ospx", server, pack.name),
+                    MessageFormat.format("{0}/download/{1}/{1}.ospx", server, pack.name),
                     String.format("%s/package/%s", server, pack.name),
                     String.format("Загрузка актуальной версии пакета %s с %s", pack.getName(), server)
             );
 
             if (savingPackage != null) {
-                savingPackages.add(savingPackage);
+                return savingPackage;
             }
         }
 
-        return savingPackages.stream();
+        return null;
     }
 
     SavingPackage downloadVersion(String downloadURL, String packageURL, String description) {
@@ -193,7 +190,7 @@ public class ClassicHubIntegration implements PackagesSource {
         return stream;
     }
 
-    List<Version> loadVersion(Package pack) {
+    List<Version> loadVersions(Package pack) {
         List<Version> packageVersions = new ArrayList<>();
         Set<String> versionKeys = new HashSet<>();
 
@@ -203,7 +200,7 @@ public class ClassicHubIntegration implements PackagesSource {
                         .forEach(item -> {
                             if (!versionKeys.contains(item)) {
                                 versionKeys.add(item);
-                                packageVersions.add(new Version(item, server, pack.getName()));
+                                packageVersions.add(new Version(item, pack.getName()));
                             }
                         });
 

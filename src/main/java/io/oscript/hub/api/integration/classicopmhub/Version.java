@@ -6,12 +6,10 @@ import lombok.Data;
 @Data
 public class Version implements VersionBase {
     String version;
-    String server;
     String packageID;
 
-    public Version(String version, String server, String packageID) {
+    public Version(String version, String packageID) {
         this.version = version;
-        this.server = server;
         this.packageID = packageID;
     }
 
