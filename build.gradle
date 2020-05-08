@@ -5,13 +5,23 @@ plugins {
     id "org.sonarqube" version "2.8"
     id 'java'
     id "com.github.breadmoirai.github-release" version "2.2.12"
+    id 'jacoco'
 }
 
-ext{
-    winswVersion='2.7.0'
+ext {
+    winswVersion = '2.7.0'
     winswNetVersion = 'net4'
     winswBuildDir = "${project.buildDir}/windows-service"
     releaseBuildDir = "${project.buildDir}/release-build"
+}
+
+ext.gitBranchName = {
+    def branch = ""
+    def proc = "git rev-parse --abbrev-ref HEAD".execute()
+    proc.in.eachLine { line -> branch = line }
+    proc.err.eachLine { line -> println line }
+    proc.waitFor()
+    branch
 }
 
 group 'io.oscript'
@@ -25,7 +35,7 @@ java {
 
 repositories {
     mavenCentral()
-    maven{
+    maven {
         url 'http://repo.jenkins-ci.org/releases/'
     }
 }
@@ -46,7 +56,7 @@ lombok {
     sha256 = ""
 }
 
-configurations{
+configurations {
     winsw { transitive = false }
 }
 
@@ -79,7 +89,7 @@ dependencies {
     testImplementation 'org.assertj:assertj-core:3.11.1'
     testImplementation "org.mockito:mockito-core:2.+"
 
-    testImplementation ('org.springframework.boot:spring-boot-starter-test'){
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
         exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
     }
 
@@ -89,9 +99,18 @@ dependencies {
 }
 
 test {
+    finalizedBy jacocoTestReport // report is always generated after tests run
     useJUnitPlatform()
     testLogging {
         exceptionFormat = 'full'
+    }
+}
+
+jacocoTestReport {
+    dependsOn test // tests are required to run before generating the report
+    reports {
+        xml.enabled = true
+        xml.destination = new File("$buildDir/jacoco/report.xml")
     }
 }
 
@@ -102,13 +121,17 @@ wrapper {
 sonarqube {
     properties {
         property "sonar.projectKey", "alkoleft_opm-jhub"
+//        property "sonar.branch.name", gitBranchName()
         property "sonar.organization", "alkoleft"
+        property "sonar.java.source", "1.11"
+        property "sonar.sourceEncoding", "UTF-8"
         property "sonar.host.url", "https://sonarcloud.io"
-        property "sonar.login", "cca1ef85e6c589d5b3846749507883c9e33fbdec"
+        property "sonar.login", sonarQubeApiToken
+        property "sonar.coverage.jacoco.xmlReportPaths", "$buildDir/jacoco/report.xml"
     }
 }
 
-task buildRelease{
+task buildRelease {
     group = 'build'
     description = 'Сборка релиза'
     dependsOn('bootJar')
@@ -142,9 +165,10 @@ task winswCreateArchive(type: Zip) {
 }
 
 githubRelease {
-    token "${apitoken}" // This is your personal access token with Repo permissions
+    token "${githubApiToken}" // This is your personal access token with Repo permissions
     // You get this from your user settings > developer settings > Personal Access Tokens
-    owner "alkoleft" // default is the last part of your group. Eg group: "com.github.breadmoirai" => owner: "breadmoirai"
+    owner "alkoleft"
+    // default is the last part of your group. Eg group: "com.github.breadmoirai" => owner: "breadmoirai"
     repo "opm-jhub" // by default this is set to your project name
     tagName "v${version}" // by default this is set to "v${project.version}"
     targetCommitish "master" // by default this is set to "master"

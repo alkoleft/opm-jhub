@@ -55,14 +55,13 @@ public class Storage {
     }
 
     public Channel getChannel(String name) {
-        if (!Naming.isInvalid(name))
-            throw new InvalidParameterException("Не корректное имя канала");
+        Naming.checkChannelName(name);
         return channels.getOrDefault(name, null);
     }
 
     public Channel registrationChannel(String name) throws IOException {
-        if (!Naming.isInvalid(name))
-            throw new InvalidParameterException("Не корректное имя канала");
+        Naming.checkChannelName(name);
+
         Channel channel;
         if ((channel = getChannel(name)) == null) {
             channels.put(name.toLowerCase(), channel = new Channel(storeProvider.channelRegistration(name)));

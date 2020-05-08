@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Channel {
 
@@ -77,7 +78,10 @@ public class Channel {
     public List<StoredVersionInfo> getVersions(String name) throws Exception {
         Naming.checkPackageName(name);
 
-        return storeProvider.getVersions(channelInfo.name, name);
+        return storeProvider.getVersions(channelInfo.name, name)
+                .stream()
+                .sorted((v1, v2) -> -VersionComparator.compare(v1.getVersion(), v2.getVersion()))
+                .collect(Collectors.toList());
     }
 
     public StoredVersionInfo getVersion(String name, String version) throws IOException {
