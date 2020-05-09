@@ -1,5 +1,6 @@
 package io.oscript.hub.api.storage;
 
+import io.oscript.hub.api.exceptions.EntityNotFoundException;
 import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.JSON;
 import org.slf4j.Logger;
@@ -40,11 +41,10 @@ public class FileSystemStoreProvider implements IStoreProvider {
     }
 
     @Override
-    public ChannelInfo getChannel(String name) throws IOException {
-        Path path = getChannelPath(name);
+    public ChannelInfo getChannel(String channel) throws IOException {
+        checkExists(channel);
 
-        if (!pathFilter(path, CHANNEL_JSON))
-            return null;
+        Path path = getChannelPath(channel);
 
         return JSON.deserialize(path.resolve(CHANNEL_JSON), ChannelInfo.class);
     }
@@ -52,10 +52,14 @@ public class FileSystemStoreProvider implements IStoreProvider {
     @Override
     public ChannelInfo channelRegistration(String name) throws IOException {
         ChannelInfo channelInfo;
-        if (null == (channelInfo = getChannel(name))) {
+
+        if (existChannel(name)) {
+            channelInfo = getChannel(name);
+        } else {
             channelInfo = new ChannelInfo(name);
             saveChannel(channelInfo);
         }
+
         return channelInfo;
     }
 
@@ -80,9 +84,7 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     @Override
     public List<StoredPackageInfo> getPackages(String channel) throws Exception {
-        if (!existChannel(channel)) {
-            return List.of();
-        }
+        checkExists(channel);
 
         Path channelPath = getChannelPath(channel);
 
@@ -91,9 +93,7 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     @Override
     public StoredPackageInfo getPackage(String channel, String name) throws IOException {
-        if (!existPackage(channel, name)) {
-            return null;
-        }
+        checkExists(channel, name);
 
         Path path = getPackagePath(name, channel);
 
@@ -109,6 +109,8 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     @Override
     public void savePackage(String channel, StoredPackageInfo pack) {
+        checkExists(channel);
+
         Path packagePath = getPackagePath(pack.getName(), channel);
         Common.createPath(packagePath);
 
@@ -126,9 +128,7 @@ public class FileSystemStoreProvider implements IStoreProvider {
     @Override
     public List<StoredVersionInfo> getVersions(String channel, String name) throws Exception {
 
-        if (!existPackage(channel, name)) {
-            return null;
-        }
+        checkExists(channel, name);
 
         Path packagePath = getPackagePath(name, channel);
 
@@ -137,9 +137,7 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     @Override
     public StoredVersionInfo getVersion(String channel, String name, String version) throws IOException {
-        if (!existVersion(channel, name, version)) {
-            return null;
-        }
+        checkExists(channel, name, version);
 
         Path path = getVersionPath(name, version, channel);
 
@@ -155,9 +153,7 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     @Override
     public byte[] getPackageData(String channel, String name, String version) throws IOException {
-        if (!existVersion(channel, name, version)) {
-            return null;
-        }
+        checkExists(channel, name, version);
 
         Path path = getVersionPath(name, version, channel);
         String packageFileName = Common.packageFileName(name, version);
@@ -172,6 +168,8 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     @Override
     public boolean saveVersion(String channel, StoredVersionInfo storedVersion) {
+        checkExists(channel);
+
         Path versionPath = getVersionPath(storedVersion.getMetadata(), channel);
 
         Common.createPath(versionPath);
@@ -185,27 +183,19 @@ public class FileSystemStoreProvider implements IStoreProvider {
     }
 
     public boolean saveVersionBin(SavingPackage pack) {
+        checkExists(pack.getChannel());
+
         Path versionPath = getVersionPath(pack.getName(), pack.getVersion(), pack.getChannel());
         Common.createPath(versionPath);
 
         Path versionBin = versionPath.resolve(Common.packageFileName(pack.getPackageData().getMetadata()));
-        FileOutputStream out = null;
 
-        try {
-            out = new FileOutputStream(versionBin.toFile());
+        try (var out = new FileOutputStream(versionBin.toFile())) {
             pack.getPackageData().getPackageRaw().transferTo(out);
             return true;
         } catch (Exception e) {
             logger.error(String.format("Ошибка записи %s", versionBin), e);
             return false;
-        } finally {
-            if (out != null) {
-                try {
-                    out.close();
-                } catch (IOException e) {
-                    logger.error(String.format("Закрытия потока записи в %s", versionBin), e);
-                }
-            }
         }
     }
 
@@ -271,4 +261,24 @@ public class FileSystemStoreProvider implements IStoreProvider {
     }
 
     //endregion
+
+    // region check
+
+    void checkExists(String channel) {
+        if (!existChannel(channel))
+            throw EntityNotFoundException.channelNotFound(channel);
+    }
+
+    void checkExists(String channel, String name) {
+        checkExists(channel);
+        if (!existPackage(channel, name))
+            throw EntityNotFoundException.packageNotFound(channel, name);
+    }
+
+    void checkExists(String channel, String name, String version) {
+        checkExists(channel, name);
+        if (!existVersion(channel, name, version))
+            throw EntityNotFoundException.versionNotFound(channel, name, version);
+    }
+    // endregion
 }

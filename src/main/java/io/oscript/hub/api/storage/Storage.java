@@ -1,6 +1,7 @@
 package io.oscript.hub.api.storage;
 
 import io.oscript.hub.api.config.HubConfiguration;
+import io.oscript.hub.api.exceptions.EntityNotFoundException;
 import io.oscript.hub.api.utils.Constants;
 import io.oscript.hub.api.utils.Naming;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +56,10 @@ public class Storage {
     }
 
     public Channel getChannel(String name) {
+        if(!channels.containsKey(name)){
+            throw EntityNotFoundException.channelNotFound(name);
+        }
+
         Naming.checkChannelName(name);
         return channels.getOrDefault(name, null);
     }
