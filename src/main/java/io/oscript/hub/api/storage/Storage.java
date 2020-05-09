@@ -2,6 +2,7 @@ package io.oscript.hub.api.storage;
 
 import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.exceptions.EntityNotFoundException;
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.utils.Constants;
 import io.oscript.hub.api.utils.Naming;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +10,6 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.security.InvalidParameterException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -24,13 +24,13 @@ public class Storage {
     private final Map<String, Channel> channels = new LinkedHashMap<>();
 
     @PostConstruct
-    void initialize() throws Exception {
+    void initialize() throws IOException, OperationFailedException {
         initializeChannels();
     }
 
     // region Channels
 
-    void initializeChannels() throws Exception {
+    void initializeChannels() throws IOException, OperationFailedException {
         storeProvider.getChannels().forEach(channelInfo -> {
             Naming.checkChannelName(channelInfo.name);
             Channel channel = new Channel(channelInfo);
@@ -56,7 +56,7 @@ public class Storage {
     }
 
     public Channel getChannel(String name) {
-        if(!channels.containsKey(name)){
+        if (!channels.containsKey(name)) {
             throw EntityNotFoundException.channelNotFound(name);
         }
 
@@ -66,10 +66,12 @@ public class Storage {
 
     public Channel registrationChannel(String name) throws IOException {
         Naming.checkChannelName(name);
-
         Channel channel;
-        if ((channel = getChannel(name)) == null) {
-            channels.put(name.toLowerCase(), channel = new Channel(storeProvider.channelRegistration(name)));
+        if (channels.containsKey(name)) {
+            channel = getChannel(name);
+        } else {
+            channel = new Channel(storeProvider.channelRegistration(name));
+            channels.put(name.toLowerCase(), channel);
         }
 
         return channel;

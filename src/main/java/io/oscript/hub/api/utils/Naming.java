@@ -3,7 +3,12 @@ package io.oscript.hub.api.utils;
 import java.security.InvalidParameterException;
 
 public class Naming {
+
     static final String[] specialChars = new String[]{"\\", "/", "*", "?"};
+
+    private Naming() {
+        throw new IllegalStateException("Utility class");
+    }
 
     public static void checkChannelName(String name) {
         if (isInvalid(name))

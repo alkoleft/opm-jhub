@@ -1,6 +1,7 @@
 package io.oscript.hub.api.storage;
 
 import io.oscript.hub.api.exceptions.EntityNotFoundException;
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.JSON;
 import org.slf4j.Logger;
@@ -36,7 +37,7 @@ public class FileSystemStoreProvider implements IStoreProvider {
 
     // region Channels
     @Override
-    public List<ChannelInfo> getChannels() throws Exception {
+    public List<ChannelInfo> getChannels() throws IOException, OperationFailedException {
         return loadMetadata(getWorkPath(), CHANNEL_JSON, ChannelInfo.class);
     }
 
@@ -83,7 +84,7 @@ public class FileSystemStoreProvider implements IStoreProvider {
     // region Packages
 
     @Override
-    public List<StoredPackageInfo> getPackages(String channel) throws Exception {
+    public List<StoredPackageInfo> getPackages(String channel) throws IOException, OperationFailedException {
         checkExists(channel);
 
         Path channelPath = getChannelPath(channel);
@@ -126,7 +127,7 @@ public class FileSystemStoreProvider implements IStoreProvider {
     //region Versions
 
     @Override
-    public List<StoredVersionInfo> getVersions(String channel, String name) throws Exception {
+    public List<StoredVersionInfo> getVersions(String channel, String name) throws IOException, OperationFailedException {
 
         checkExists(channel, name);
 
@@ -194,14 +195,15 @@ public class FileSystemStoreProvider implements IStoreProvider {
             pack.getPackageData().getPackageRaw().transferTo(out);
             return true;
         } catch (Exception e) {
-            logger.error(String.format("Ошибка записи %s", versionBin), e);
+            String message = String.format("Ошибка записи %s", versionBin);
+            logger.error(message, e);
             return false;
         }
     }
 
     // endregion
 
-    <T> List<T> loadMetadata(Path itemsPath, String metadataFile, Class<T> type) throws Exception {
+    <T> List<T> loadMetadata(Path itemsPath, String metadataFile, Class<T> type) throws IOException, OperationFailedException {
         Map<Path, Exception> exceptions = new LinkedHashMap<>();
         List<T> items;
         try (var list = Files.list(itemsPath)) {
@@ -219,10 +221,13 @@ public class FileSystemStoreProvider implements IStoreProvider {
                     .collect(Collectors.toList());
         }
 
-        exceptions.forEach((path, e) -> logger.error(String.format("Ошибка чтения %s", path), e));
+        exceptions.forEach((path, e) -> {
+            String message = String.format("Ошибка чтения %s", path);
+            logger.error(message, e);
+        });
 
         if (items.isEmpty() && !exceptions.isEmpty()) {
-            throw new Exception("Не удалось загрузить " + type.getSimpleName());
+            throw new OperationFailedException(String.format("Загрузка %s", type.getSimpleName()));
         }
         return items;
     }

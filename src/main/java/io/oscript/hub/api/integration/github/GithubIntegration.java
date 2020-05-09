@@ -1,5 +1,6 @@
 package io.oscript.hub.api.integration.github;
 
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.integration.PackagesSource;
 import io.oscript.hub.api.storage.Channel;
 import io.oscript.hub.api.storage.JSONSettingsProvider;
@@ -25,7 +26,7 @@ import java.util.stream.Stream;
 @Service
 public class GithubIntegration implements PackagesSource {
 
-    private static final Logger logger = LoggerFactory.getLogger(GithubIntegration.class);
+    static final Logger logger = LoggerFactory.getLogger(GithubIntegration.class);
     private GitHub client;
 
     @Autowired
@@ -46,24 +47,22 @@ public class GithubIntegration implements PackagesSource {
         config = settings.getConfiguration("github", GithubConfig.class);
         if (config == null) {
             config = new GithubConfig();
+            logger.warn("Использованы настройки по умолчанию");
+        } else {
+            String configText = JSON.serialize(config);
+            logger.info("Загружены настройки {}", configText);
         }
-
-        logger.info("Загружены настройки {}", JSON.serialize(config));
 
         logger.info("Загрузка списка найденных репозиториев");
         repositories = settings.getConfigurationList("repositories", Repository.class);
-        if (repositories == null) {
-            repositories = new ArrayList<>();
-        }
-
-        mainChannel = store.registrationChannel(config.channel);
 
         logger.info("Загружен список репозиториев, {} репозиториев", repositories.size());
 
+        mainChannel = store.registrationChannel(config.channel);
     }
 
     @Override
-    public void sync() throws Exception {
+    public void sync() throws OperationFailedException {
         logger.info("Синхронизация с Github");
         findNewRepositories();
         findNewReleases();
@@ -113,19 +112,28 @@ public class GithubIntegration implements PackagesSource {
         }
     }
 
-    private void findNewReleases() throws IOException {
+    private void findNewReleases() throws OperationFailedException {
 
         logger.info("Поиск новых релизов");
         boolean needSave = false;
 
         for (Repository rep : repositories) {
-            var newReleases = loadReleases(rep);
+            List<Release> newReleases;
+            try {
+                newReleases = loadReleases(rep);
+            } catch (IOException e) {
+                throw new OperationFailedException("Получение списка релизов", e);
+            }
 
             needSave |= !newReleases.isEmpty();
 
             if (!newReleases.isEmpty()) {
-                logger.info("Новые релизы для {}\n{}", rep.getFullName(),
-                        String.join("\t\t\n", newReleases.stream().map(Release::getVersion).toArray(CharSequence[]::new)));
+                String releasesString = String.join("\t\t\n",
+                        newReleases.stream()
+                                .map(Release::getVersion)
+                                .toArray(CharSequence[]::new)
+                );
+                logger.info("Новые релизы для {}\n{}", rep.getFullName(), releasesString);
             }
 
             newReleases.forEach(rep::addRelease);
@@ -171,13 +179,13 @@ public class GithubIntegration implements PackagesSource {
         List<Release> releases = new ArrayList<>();
 
         for (var ghRelease : repository.listReleases()) {
-            if (ghRelease.isDraft() || (!config.collectPreReleases && ghRelease.isPrerelease()))
-                continue;
-            if (lastRelease != null && lastRelease.compareTag(ghRelease.getTagName()) >= 0) {
-                break;
-            }
+            if (!ghRelease.isDraft() && (config.collectPreReleases || !ghRelease.isPrerelease())) {
+                if (lastRelease != null && lastRelease.compareVersion(ghRelease.getTagName()) >= 0) {
+                    break;
+                }
 
-            releases.add(Release.create(ghRelease));
+                releases.add(Release.create(ghRelease));
+            }
         }
         return releases;
     }

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 public class JSONSettingsProvider {
@@ -43,7 +44,8 @@ public class JSONSettingsProvider {
     public <T> List<T> getConfigurationList(String name, Class<T> type) throws IOException {
         Path path = getSettingsPath().resolve(fileName(name));
         if (Files.notExists(path)) {
-            return null;
+            logger.info("Нет сохраненной конфигурации {} ", type.getSimpleName());
+            return new ArrayList<>();
         }
 
         return JSON.deserializeList(path, type);
@@ -55,12 +57,13 @@ public class JSONSettingsProvider {
             JSON.serialize(configuration, path);
             return true;
         } catch (IOException e) {
-            logger.error(String.format("Ошибка сохранения настроек %s", name), e);
+            String message = String.format("Ошибка сохранения настроек %s", name);
+            logger.error(message, e);
             return false;
         }
     }
 
-    static String fileName(String configName){
+    static String fileName(String configName) {
         return String.format("%s.json", configName);
     }
 

@@ -1,5 +1,6 @@
 package io.oscript.hub.api.integration.classicopmhub;
 
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.storage.Channel;
 import io.oscript.hub.api.storage.JSONSettingsProvider;
 import io.oscript.hub.api.storage.SavingPackage;
@@ -32,8 +33,8 @@ import static org.mockito.Mockito.when;
 class ClassicHubIntegrationTest {
 
     ClassicHubIntegration hubIntegration;
-    final static String hubIO = "http://hub.oscript.io";
-    final static String hubRU = "http://hub.oscript.ru";
+    static final String hubIO = "http://hub.oscript.io";
+    static final String hubRU = "http://hub.oscript.ru";
 
     @BeforeEach
     void setUp() {
@@ -54,7 +55,7 @@ class ClassicHubIntegrationTest {
     }
 
     @Test
-    void sync() throws Exception {
+    void sync() throws OperationFailedException {
         hubIntegration.settings = mock(JSONSettingsProvider.class);
         when(hubIntegration.settings.saveConfiguration(any(), any())).thenReturn(true);
 
@@ -63,7 +64,7 @@ class ClassicHubIntegrationTest {
         doReturn(List.of("opm", "ClientSSH", "zoo").stream()).when(hub).loadPackageIDs(hubIO);
         doReturn(List.of("opm", "asserts", "fs", "asserts").stream()).when(hub).loadPackageIDs(hubRU);
         doReturn(null).when(hub).loadVersions(any());
-        doReturn(List.of(new Version("1.0", "opm")))
+        doReturn(List.of(new PackageVersion("1.0", "opm")))
                 .when(hub)
                 .loadVersions(argThat(argument -> argument.getName().equals("opm")));
         doNothing().when(hub).downloadPackages();
@@ -147,7 +148,7 @@ class ClassicHubIntegrationTest {
         var result = hubIntegration.loadVersions(testPackage(true));
         assertThat(result).isNotNull()
                 .doesNotContainNull()
-                .extracting(Version::getVersion)
+                .extracting(PackageVersion::getVersion)
                 .doesNotHaveDuplicates()
                 .contains("0.16.2")
                 .contains("0.16.0")
@@ -157,7 +158,7 @@ class ClassicHubIntegrationTest {
     @Test
     void versions() {
         String server = ClassicHubConfiguration.defaultConfiguration().servers.get(0);
-        var result = ClassicHubIntegration.versions(testPackage(true), server);
+        var result = ClassicHubIntegration.versionsFromPackagePage(testPackage(true), server);
         assertThat(result).isNotNull()
                 .doesNotContainNull()
                 .contains("0.16.2")
@@ -180,8 +181,8 @@ class ClassicHubIntegrationTest {
         return new Package(exists ? "opm" : "unknown-package");
     }
 
-    static Version testVersion(boolean exists) {
-        return new Version(exists ? "0.16.2" : "999999", "opm");
+    static PackageVersion testVersion(boolean exists) {
+        return new PackageVersion(exists ? "0.16.2" : "999999", "opm");
     }
 
 }

@@ -16,12 +16,8 @@ public class Repository {
 
     public static Repository create(GHRepository rep) {
         Repository repository = new Repository();
-        try {
-            repository.fullName = rep.getFullName();
-            return repository;
-        } catch (Exception ignore) {
-            return null;
-        }
+        repository.fullName = rep.getFullName();
+        return repository;
     }
 
     public void addRelease(Release release) {

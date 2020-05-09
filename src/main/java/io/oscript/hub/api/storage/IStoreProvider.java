@@ -1,11 +1,13 @@
 package io.oscript.hub.api.storage;
 
+import io.oscript.hub.api.exceptions.OperationFailedException;
+
 import java.io.IOException;
 import java.util.List;
 
 public interface IStoreProvider {
     //region Channels
-    List<ChannelInfo> getChannels() throws Exception;
+    List<ChannelInfo> getChannels() throws IOException, OperationFailedException;
 
     ChannelInfo channelRegistration(String name) throws IOException;
 
@@ -19,7 +21,7 @@ public interface IStoreProvider {
 
     //region Packages
 
-    List<StoredPackageInfo> getPackages(String channel) throws Exception;
+    List<StoredPackageInfo> getPackages(String channel) throws IOException, OperationFailedException;
 
     StoredPackageInfo getPackage(String channel, String name) throws IOException;
 
@@ -35,7 +37,7 @@ public interface IStoreProvider {
 
     byte[] getPackageData(String channel, String name, String version) throws IOException;
 
-    List<StoredVersionInfo> getVersions(String channel, String name) throws Exception;
+    List<StoredVersionInfo> getVersions(String channel, String name) throws IOException, OperationFailedException;
 
     boolean saveVersionBin(SavingPackage pack);
 

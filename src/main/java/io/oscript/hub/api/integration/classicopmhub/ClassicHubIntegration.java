@@ -1,5 +1,6 @@
 package io.oscript.hub.api.integration.classicopmhub;
 
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.integration.PackageType;
 import io.oscript.hub.api.integration.PackagesSource;
 import io.oscript.hub.api.integration.VersionSourceInfo;
@@ -35,8 +36,8 @@ public class ClassicHubIntegration implements PackagesSource {
 
     static final Logger logger = LoggerFactory.getLogger(ClassicHubIntegration.class);
 
-    final static String PACKAGE_PAGE_TEMPLATE = "%s/package/%s";
-    final static String DOWNLOAD_PACKAGE_TEMPLATE = "{0}/download/{1}/{1}-{2}.ospx";
+    static final String PACKAGE_PAGE_TEMPLATE = "%s/package/%s";
+    static final String DOWNLOAD_PACKAGE_TEMPLATE = "{0}/download/{1}/{1}-{2}.ospx";
     @Autowired
     JSONSettingsProvider settings;
 
@@ -48,7 +49,7 @@ public class ClassicHubIntegration implements PackagesSource {
     ClassicHubConfiguration config = new ClassicHubConfiguration();
 
     final List<Package> packages = new ArrayList<>();
-    final List<Version> versions = new ArrayList<>();
+    final List<PackageVersion> versions = new ArrayList<>();
 
 
     @PostConstruct
@@ -56,24 +57,29 @@ public class ClassicHubIntegration implements PackagesSource {
         String description = "Загрузка настроек интеграции с opm hub";
         logger.info(description);
 
+        final String configName = "opm-hub-mirror";
+
         try {
-            config = settings.getConfiguration("opm-hub-mirror", ClassicHubConfiguration.class);
-            if (config != null)
-                logger.info(description, JSON.serialize(config));
+            config = settings.getConfiguration(configName, ClassicHubConfiguration.class);
+            if (config != null) {
+                String configText = JSON.serialize(config);
+                logger.info(description, configText);
+            }
         } catch (Exception e) {
-            logger.error(String.format("Ошибка операции: %s", description), e);
+            String message = String.format("Ошибка операции: %s", description);
+            logger.error(message, e);
         }
 
         if (config == null) {
             logger.warn("Используются настройки по умолчанию. Не удалось загрузить настройки по ошибке или их просто нет");
             config = ClassicHubConfiguration.defaultConfiguration();
-            settings.saveConfiguration("opm-hub-mirror", config);
+            settings.saveConfiguration(configName, config);
         }
         mainChannel = store.registrationChannel(config.channel);
     }
 
     @Override
-    public void sync() throws Exception {
+    public void sync() throws OperationFailedException {
         logger.info("Получение списка зарегистрированных пакетов");
         var packagesStream = config.getServers()
                 .stream()
@@ -120,7 +126,7 @@ public class ClassicHubIntegration implements PackagesSource {
 
     }
 
-    SavingPackage downloadVersion(Version version) {
+    SavingPackage downloadVersion(PackageVersion version) {
         SavingPackage savingPackage = null;
 
         for (String server : config.getServers()) {
@@ -175,7 +181,8 @@ public class ClassicHubIntegration implements PackagesSource {
                 }
             }
         } catch (Exception e) {
-            logger.error(String.format("Ошибка операции %s", description), e);
+            String message = String.format("Ошибка операции %s", description);
+            logger.error(message, e);
         }
 
         return null;
@@ -192,17 +199,17 @@ public class ClassicHubIntegration implements PackagesSource {
         return stream;
     }
 
-    List<Version> loadVersions(Package pack) {
-        List<Version> packageVersions = new ArrayList<>();
+    List<PackageVersion> loadVersions(Package pack) {
+        List<PackageVersion> packageVersions = new ArrayList<>();
         Set<String> versionKeys = new HashSet<>();
 
         for (String server : config.getServers()) {
             try {
-                Stream.concat(versions(pack, server).stream(), versionsFromDownload(pack, server).stream())
+                Stream.concat(versionsFromPackagePage(pack, server).stream(), versionsFromDownload(pack, server).stream())
                         .forEach(item -> {
                             if (!versionKeys.contains(item)) {
                                 versionKeys.add(item);
-                                packageVersions.add(new Version(item, pack.getName()));
+                                packageVersions.add(new PackageVersion(item, pack.getName()));
                             }
                         });
 
@@ -214,7 +221,7 @@ public class ClassicHubIntegration implements PackagesSource {
         return packageVersions;
     }
 
-    static List<String> versions(Package pack, String serverURL) {
+    static List<String> versionsFromPackagePage(Package pack, String serverURL) {
 
         return parseVersions(
                 String.format(PACKAGE_PAGE_TEMPLATE, serverURL, pack.name),

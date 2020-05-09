@@ -1,7 +1,7 @@
 package io.oscript.hub.api.integration.github;
 
 import io.oscript.hub.api.integration.VersionBase;
-import io.oscript.hub.api.utils.Common;
+import io.oscript.hub.api.utils.VersionComparator;
 import lombok.Data;
 import org.kohsuke.github.GHRelease;
 
@@ -23,7 +23,8 @@ public class Release implements VersionBase {
         release.setZipUrl(ghRelease.getZipballUrl());
         try {
             release.setDate(ghRelease.getCreatedAt());
-        } catch (IOException ignore) {
+        } catch (IOException e) {
+            GithubIntegration.logger.error("Ошибка разбора даты создания релиза", e);
         }
 
         try {
@@ -33,7 +34,8 @@ public class Release implements VersionBase {
                 }
 
             }
-        } catch (IOException ignore) {
+        } catch (IOException e) {
+            GithubIntegration.logger.error("Ошибка получения списка прикрепленных артефактов релиза", e);
         }
         return release;
     }
@@ -48,12 +50,8 @@ public class Release implements VersionBase {
         }
     }
 
-    public int compareTag(String tag) {
-        if (Common.isNullOrEmpty(this.tag)) {
-            return this.version.compareToIgnoreCase(getVersionFormTag(tag));
-        } else {
-            return this.tag.compareToIgnoreCase(tag);
-        }
+    public int compareVersion(String tag) {
+        return VersionComparator.compare(version, getVersionFormTag(tag));
     }
 
     public void setTag(String tag) {

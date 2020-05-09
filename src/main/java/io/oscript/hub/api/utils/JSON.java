@@ -10,11 +10,16 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 public class JSON {
 
     static final Logger logger = LoggerFactory.getLogger(JSON.class);
+
+    private JSON() {
+        throw new IllegalStateException("Utility class");
+    }
 
     static ObjectMapper mapper() {
         ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
@@ -37,14 +42,14 @@ public class JSON {
         try {
             return mapper().readValue(path.toFile(), type);
         } catch (IOException ex) {
-            logger.error(String.format("Ошибка разбора json файла %s", path), ex);
-            throw ex;
+            String message = String.format("Ошибка разбора json файла %s", path);
+            throw new IOException(message, ex);
         }
     }
 
     public static <T> List<T> deserializeList(Path path, Class<T> type) throws IOException {
         if (Files.notExists(path))
-            return null;
+            return new ArrayList<>();
         try {
             ObjectMapper mapper = mapper();
             CollectionType collectionType = mapper.getTypeFactory()
@@ -52,8 +57,8 @@ public class JSON {
 
             return mapper.readValue(path.toFile(), collectionType);
         } catch (IOException ex) {
-            logger.error(String.format("Ошибка чтения разбора файла %s", path), ex);
-            throw ex;
+            String message = String.format("Ошибка разбора json файла %s", path);
+            throw new IOException(message, ex);
         }
     }
 }

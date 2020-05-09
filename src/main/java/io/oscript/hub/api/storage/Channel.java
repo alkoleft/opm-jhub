@@ -1,5 +1,6 @@
 package io.oscript.hub.api.storage;
 
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.utils.Common;
 import io.oscript.hub.api.utils.Naming;
 import io.oscript.hub.api.utils.VersionComparator;
@@ -28,7 +29,7 @@ public class Channel {
         return channelInfo;
     }
 
-    public List<StoredPackageInfo> getPackages() throws Exception {
+    public List<StoredPackageInfo> getPackages() throws IOException, OperationFailedException {
         return storeProvider.getPackages(channelInfo.name);
     }
 
@@ -76,7 +77,7 @@ public class Channel {
 
     // region Versions
 
-    public List<StoredVersionInfo> getVersions(String name) throws Exception {
+    public List<StoredVersionInfo> getVersions(String name) throws IOException, OperationFailedException {
         Naming.checkPackageName(name);
 
         return storeProvider.getVersions(channelInfo.name, name)

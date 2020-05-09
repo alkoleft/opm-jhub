@@ -1,5 +1,6 @@
 package io.oscript.hub.api.controllers;
 
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.response.Response;
 import io.oscript.hub.api.storage.Channel;
 import io.oscript.hub.api.storage.StoredPackageInfo;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
 
 public class CompatibilityController extends BaseController {
     @GetMapping("download/list.txt")
-    public ResponseEntity<String> packageListTXT(@RequestHeader HttpHeaders headers) throws Exception {
+    public ResponseEntity<String> packageListTXT(@RequestHeader HttpHeaders headers) throws IOException, OperationFailedException {
         RequestParameters parameters = getRequestParameters(headers);
         Channel channel = store.getChannel(parameters.getChannel());
         var packages = channel.getPackages();

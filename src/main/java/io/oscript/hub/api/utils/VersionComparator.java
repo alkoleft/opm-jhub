@@ -3,6 +3,11 @@ package io.oscript.hub.api.utils;
 import java.util.Objects;
 
 public class VersionComparator {
+
+    private VersionComparator() {
+        throw new IllegalStateException("Utility class");
+    }
+
     public static boolean large(String compared, String than) {
         return compare(compared, than) > 0;
     }

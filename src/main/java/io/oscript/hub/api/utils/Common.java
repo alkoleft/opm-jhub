@@ -7,9 +7,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.text.MessageFormat;
 
 public class Common {
+
+    private Common() {
+        throw new IllegalStateException("Utility class");
+    }
 
     private static final Logger logger = LoggerFactory.getLogger(Common.class);
 
@@ -30,7 +33,8 @@ public class Common {
             try {
                 Files.createDirectories(path);
             } catch (IOException e) {
-                logger.error(String.format("Ошибка создания каталога %s", path.toAbsolutePath()), e);
+                String message = String.format("Ошибка создания каталога %s", path.toAbsolutePath());
+                logger.error(message, e);
             }
         }
     }

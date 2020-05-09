@@ -1,5 +1,6 @@
 package io.oscript.hub.api.controllers;
 
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.response.Response;
 import io.oscript.hub.api.storage.StoredPackageInfo;
 import io.oscript.hub.api.storage.StoredVersionInfo;
@@ -22,7 +23,7 @@ import java.util.List;
 public class PackagesController extends BaseController {
 
     @GetMapping("packages")
-    public ResponseEntity<List<StoredPackageInfo>> packageList() throws Exception {
+    public ResponseEntity<List<StoredPackageInfo>> packageList() throws IOException, OperationFailedException {
         var body = store.getStableChannel().getPackages();
 
         return ResponseEntity
@@ -47,7 +48,7 @@ public class PackagesController extends BaseController {
     }
 
     @GetMapping("packages/{name}/versions")
-    public ResponseEntity<List<StoredVersionInfo>> versions(@PathVariable("name") String packageName) throws Exception {
+    public ResponseEntity<List<StoredVersionInfo>> versions(@PathVariable("name") String packageName) throws IOException, OperationFailedException {
         var body = store.getStableChannel().getVersions(packageName);
 
         if (body != null) {

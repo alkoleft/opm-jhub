@@ -1,5 +1,6 @@
 package io.oscript.hub.api.storage;
 
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.utils.VersionComparator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,7 @@ class ChannelTest {
     IStoreProvider provider;
     Channel channel;
 
-    final static String packageName = "package1";
+    static final String packageName = "package1";
 
     @BeforeEach
     void setUp() {
@@ -34,7 +35,7 @@ class ChannelTest {
     }
 
     @Test
-    void getPackages() throws Exception {
+    void getPackages() throws IOException, OperationFailedException {
 
         var package1 = new StoredPackageInfo();
         package1.name = packageName;
@@ -90,7 +91,7 @@ class ChannelTest {
     }
 
     @Test
-    void getVersions() throws Exception {
+    void getVersions() throws IOException, OperationFailedException {
         when(provider.getVersions(any(), any())).thenReturn(List.of(
                 StoredVersionInfo.create(Metadata.create(packageName, "2.0.0")),
                 StoredVersionInfo.create(Metadata.create(packageName, "1.0.0")),

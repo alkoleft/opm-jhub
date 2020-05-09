@@ -11,6 +11,10 @@ import java.net.http.HttpResponse;
 public class HttpRequest {
     private static final Logger logger = LoggerFactory.getLogger(HttpRequest.class);
 
+    private HttpRequest() {
+        throw new IllegalStateException("Utility class");
+    }
+
     public static String request(String serverURL, String resource, String description) throws IOException, InterruptedException {
         String requestUri = String.format("%s/%s", serverURL, resource);
 
@@ -28,7 +32,8 @@ public class HttpRequest {
         var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() != 200) {
-            logger.error("Ошибка операции {}. Код ответа {}\nОтвет:{}", description, response.statusCode(), response.body());
+            String body = response.body();
+            logger.error("Ошибка операции {}. Код ответа {}\nОтвет:{}", description, response.statusCode(), body);
             return null;
         }
 
@@ -65,8 +70,9 @@ public class HttpRequest {
             return null;
         }
         if (response.statusCode() != 200) {
+            String body = response.body().toString();
             logger.error("Ошибка операции {} с {}. Код ответа: {}", description, url, response.statusCode());
-            logger.error(response.body().toString());
+            logger.error(body);
             return null;
         }
 
