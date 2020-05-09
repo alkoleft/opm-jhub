@@ -24,4 +24,13 @@ public class Metadata implements IPackageMetadata {
     String description;
 
     List<DependenceInfo> dependencies = new ArrayList<>();
+
+    public static Metadata create(String name, String version) {
+        Metadata result = new Metadata();
+        result.name = name;
+        result.version = version;
+
+        return result;
+    }
+
 }

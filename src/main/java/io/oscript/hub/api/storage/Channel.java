@@ -59,6 +59,7 @@ public class Channel {
         }
 
         if (versionInfo == null) {
+            logger.error("Ну далось получить информацию о сохраненном пакете");
             return null;
         }
 
@@ -85,7 +86,11 @@ public class Channel {
     }
 
     public StoredVersionInfo getVersion(String name, String version) throws IOException {
-        Naming.check(name, version);
+        if (Common.isNullOrEmpty(version)) {
+            Naming.checkPackageName(name);
+        } else {
+            Naming.check(name, version);
+        }
 
         if (Common.isNullOrEmpty(version) || version.equalsIgnoreCase("latest")) {
             version = getPackage(name).getVersion();
@@ -106,6 +111,10 @@ public class Channel {
     public byte[] getVersionData(String name, String version) throws IOException {
         Naming.check(name, version);
         return storeProvider.getPackageData(channelInfo.name, name, version);
+    }
+
+    public String getName() {
+        return channelInfo.getName();
     }
     // endregion
 }
