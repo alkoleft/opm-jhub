@@ -35,6 +35,8 @@ public class ClassicHubIntegration implements PackagesSource {
 
     static final Logger logger = LoggerFactory.getLogger(ClassicHubIntegration.class);
 
+    final static String PACKAGE_PAGE_TEMPLATE = "%s/package/%s";
+    final static String DOWNLOAD_PACKAGE_TEMPLATE = "{0}/download/{1}/{1}-{2}.ospx";
     @Autowired
     JSONSettingsProvider settings;
 
@@ -123,8 +125,8 @@ public class ClassicHubIntegration implements PackagesSource {
 
         for (String server : config.getServers()) {
             savingPackage = downloadVersion(
-                    MessageFormat.format("{0}/download/{1}/{1}-{2}.ospx", server, version.packageID, version.version),
-                    String.format("%s/package/%s", server, version.packageID),
+                    MessageFormat.format(DOWNLOAD_PACKAGE_TEMPLATE, server, version.packageID, version.version),
+                    String.format(PACKAGE_PAGE_TEMPLATE, server, version.packageID),
                     String.format("Загрузка версии пакета %s с %s", version.fullName(), server)
             );
 
@@ -140,7 +142,7 @@ public class ClassicHubIntegration implements PackagesSource {
         for (String server : config.getServers()) {
             SavingPackage savingPackage = downloadVersion(
                     MessageFormat.format("{0}/download/{1}/{1}.ospx", server, pack.name),
-                    String.format("%s/package/%s", server, pack.name),
+                    String.format(PACKAGE_PAGE_TEMPLATE, server, pack.name),
                     String.format("Загрузка актуальной версии пакета %s с %s", pack.getName(), server)
             );
 
@@ -215,7 +217,7 @@ public class ClassicHubIntegration implements PackagesSource {
     static List<String> versions(Package pack, String serverURL) {
 
         return parseVersions(
-                String.format("%s/package/%s", serverURL, pack.name),
+                String.format(PACKAGE_PAGE_TEMPLATE, serverURL, pack.name),
                 Pattern.compile("<a.+download/(.+)/\\1-(.+)\\.ospx\">\\2</a>"),
                 pack.name);
     }

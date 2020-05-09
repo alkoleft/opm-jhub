@@ -32,7 +32,7 @@ public class JSONSettingsProvider {
     // region Settings
 
     public <T> T getConfiguration(String name, Class<T> type) throws IOException {
-        Path path = getSettingsPath().resolve(String.format("%s.json", name));
+        Path path = getSettingsPath().resolve(fileName(name));
         if (Files.notExists(path)) {
             return null;
         }
@@ -41,7 +41,7 @@ public class JSONSettingsProvider {
     }
 
     public <T> List<T> getConfigurationList(String name, Class<T> type) throws IOException {
-        Path path = getSettingsPath().resolve(String.format("%s.json", name));
+        Path path = getSettingsPath().resolve(fileName(name));
         if (Files.notExists(path)) {
             return null;
         }
@@ -51,13 +51,17 @@ public class JSONSettingsProvider {
 
     public boolean saveConfiguration(String name, Object configuration) {
         try {
-            Path path = getSettingsPath().resolve(String.format("%s.json", name));
+            Path path = getSettingsPath().resolve(fileName(name));
             JSON.serialize(configuration, path);
             return true;
         } catch (IOException e) {
             logger.error(String.format("Ошибка сохранения настроек %s", name), e);
             return false;
         }
+    }
+
+    static String fileName(String configName){
+        return String.format("%s.json", configName);
     }
 
     //endregion
