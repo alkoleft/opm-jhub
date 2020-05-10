@@ -27,9 +27,4 @@ public class VoidTask implements SimpleTask<Void> {
             return null;
         });
     }
-
-    @Override
-    public String getName() {
-        return worker.getClass().getSimpleName();
-    }
 }

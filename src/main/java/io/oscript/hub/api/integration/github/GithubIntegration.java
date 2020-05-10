@@ -173,7 +173,6 @@ public class GithubIntegration implements PackagesSource {
         logger.debug("Загрузка только новых релизов {} (Текущий релиз: {})", rep.getFullName(),
                 lastRelease == null ? "нет" : lastRelease.getVersion());
 
-
         GHRepository repository = getClient().getRepository(rep.getFullName());
 
         List<Release> releases = new ArrayList<>();

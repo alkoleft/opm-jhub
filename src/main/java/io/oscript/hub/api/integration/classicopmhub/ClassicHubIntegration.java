@@ -104,21 +104,26 @@ public class ClassicHubIntegration implements PackagesSource {
             logger.error("Не удалось сохранить список пакетов opm-hub");
         }
 
-        logger.info("Загрузка новых версий пакетов");
         downloadPackages();
     }
 
     public void downloadPackages() {
-        logger.info("Загрузка версий пакетов");
+        logger.info("Загрузка новых версий пакетов");
 
-        versions.stream()
+        var newVersions = versions.stream()
                 .filter(version -> !mainChannel.containsVersion(version.packageID, version.version))
                 .map(this::downloadVersion)
                 .filter(Objects::nonNull)
-                .forEach(mainChannel::pushPackage);
+                .collect(Collectors.toList());
+
+        if (newVersions.isEmpty()) {
+            logger.info("Новых версий не обнаружено");
+        } else {
+            newVersions.forEach(mainChannel::pushPackage);
+        }
         logger.info("Загрузка пакетов, которые не содержат версий");
         packages.stream()
-                .filter(aPackage -> aPackage.versions.isEmpty())
+                .filter(pack -> pack.versions.isEmpty())
                 .map(this::downloadLastVersion)
                 .filter(Objects::nonNull)
                 .filter(savingPackage -> !mainChannel.containsVersion(savingPackage.getName(), savingPackage.getVersion()))
@@ -145,11 +150,14 @@ public class ClassicHubIntegration implements PackagesSource {
 
     SavingPackage downloadLastVersion(Package pack) {
 
+        String description = String.format("Загрузка актуальной версии пакета %s", pack.getName());
+
+        logger.info(description);
         for (String server : config.getServers()) {
             SavingPackage savingPackage = downloadVersion(
                     MessageFormat.format("{0}/download/{1}/{1}.ospx", server, pack.name),
                     String.format(PACKAGE_PAGE_TEMPLATE, server, pack.name),
-                    String.format("Загрузка актуальной версии пакета %s с %s", pack.getName(), server)
+                    String.format("%s с %s", description, server)
             );
 
             if (savingPackage != null) {
