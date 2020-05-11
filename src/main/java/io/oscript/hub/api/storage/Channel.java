@@ -93,9 +93,8 @@ public class Channel {
             Naming.check(name, version);
         }
 
-        if (Common.isNullOrEmpty(version) || version.equalsIgnoreCase("latest")) {
-            version = getPackage(name).getVersion();
-        }
+        version = normalizeVersion(name, version);
+
         return storeProvider.getVersion(channelInfo.name, name, version);
     }
 
@@ -111,11 +110,22 @@ public class Channel {
 
     public byte[] getVersionData(String name, String version) throws IOException {
         Naming.check(name, version);
+
+        version = normalizeVersion(name, version);
+
         return storeProvider.getPackageData(channelInfo.name, name, version);
     }
 
     public String getName() {
         return channelInfo.getName();
+    }
+
+    private String normalizeVersion(String name, String version) throws IOException {
+        if (Common.isNullOrEmpty(version) || version.equalsIgnoreCase("latest")) {
+            return getPackage(name).getVersion();
+        } else {
+            return version;
+        }
     }
     // endregion
 }
