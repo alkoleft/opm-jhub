@@ -1,3 +1,5 @@
+import org.codehaus.groovy.runtime.GStringImpl
+
 plugins {
     id 'org.springframework.boot' version '2.2.6.RELEASE'
     id 'io.spring.dependency-management' version '1.0.9.RELEASE'
@@ -25,7 +27,7 @@ ext.gitBranchName = {
 }
 
 group 'io.oscript'
-version '1.0.0.0'
+version '1.0.0'
 description "Java реализация сервера пакетов OneScript"
 
 java {
@@ -78,8 +80,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-logging'
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
 
-    compile group: 'org.kohsuke', name: 'github-api', version: '1.111'
-    compile group: 'commons-io', name: 'commons-io', version: '2.6'
+    implementation group: 'org.kohsuke', name: 'github-api', version: '1.111'
+    implementation group: 'commons-io', name: 'commons-io', version: '2.6'
+    implementation group: 'org.springdoc', name: 'springdoc-openapi-ui', version: '1.3.9'
 
     // endregion
 
@@ -150,6 +153,7 @@ task winswCreateFiles(dependsOn: 'bootJar', type: Copy) {
     dependsOn('bootJar')
     def outPath = winswBuildDir
 
+    from configurations.winsw
     from "${project.buildDir}/libs/"
     from "${rootProject.rootDir}/asService/win"
     from "${rootProject.rootDir}/asService/logback.xml"
