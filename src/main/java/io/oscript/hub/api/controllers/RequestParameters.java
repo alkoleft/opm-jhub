@@ -1,4 +1,4 @@
-package io.oscript.hub.api.data;
+package io.oscript.hub.api.controllers;
 
 import io.oscript.hub.api.utils.Constants;
 import lombok.Data;

@@ -1,18 +1,16 @@
 package io.oscript.hub.api.controllers;
 
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.response.Response;
 import io.oscript.hub.api.storage.StoredPackageInfo;
 import io.oscript.hub.api.storage.StoredVersionInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,10 +22,8 @@ import java.util.List;
 @RestController
 public class PackagesController extends BaseController {
 
-    static final Logger logger = LoggerFactory.getLogger(PackagesController.class);
-
     @GetMapping("packages")
-    public ResponseEntity<List<StoredPackageInfo>> packageList() throws Exception {
+    public ResponseEntity<List<StoredPackageInfo>> packageList() throws IOException, OperationFailedException {
         var body = store.getStableChannel().getPackages();
 
         return ResponseEntity
@@ -52,7 +48,7 @@ public class PackagesController extends BaseController {
     }
 
     @GetMapping("packages/{name}/versions")
-    public ResponseEntity<List<StoredVersionInfo>> versions(@PathVariable("name") String packageName) throws Exception {
+    public ResponseEntity<List<StoredVersionInfo>> versions(@PathVariable("name") String packageName) throws IOException, OperationFailedException {
         var body = store.getStableChannel().getVersions(packageName);
 
         if (body != null) {
@@ -84,16 +80,14 @@ public class PackagesController extends BaseController {
         }
     }
 
-    @RequestMapping(value = "/push",
-            method = RequestMethod.POST)
+    @PostMapping("/push")
     public ResponseEntity<Response> pushPackage(InputStream dataStream,
                                                 @RequestHeader HttpHeaders headers) throws IOException {
         return pushPackageHandler(dataStream, headers);
 
     }
 
-    @RequestMapping(value = "/push",
-            method = RequestMethod.POST,
+    @PostMapping(value = "/push",
             consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public ResponseEntity<Response> pushPackage(@RequestParam("file") MultipartFile file,
                                                 @RequestHeader HttpHeaders headers) throws IOException {

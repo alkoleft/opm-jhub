@@ -4,5 +4,5 @@ public enum VersionSourceType {
     UNKNOWN,
     GITHUB_RELEASE,
     OPM_HUB,
-    MANUAL_PUSH;
+    MANUAL_PUSH
 }

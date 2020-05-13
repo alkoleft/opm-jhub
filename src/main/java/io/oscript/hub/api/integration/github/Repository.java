@@ -1,6 +1,5 @@
 package io.oscript.hub.api.integration.github;
 
-import io.oscript.hub.api.integration.VersionBase;
 import lombok.Data;
 import org.kohsuke.github.GHRepository;
 
@@ -17,17 +16,12 @@ public class Repository {
 
     public static Repository create(GHRepository rep) {
         Repository repository = new Repository();
-        try {
-            repository.fullName = rep.getFullName();
-            return repository;
-        } catch (Exception ignore) {
-            return null;
-        }
+        repository.fullName = rep.getFullName();
+        return repository;
     }
 
     public void addRelease(Release release) {
         releases.add(release);
-        release.repository = this;
     }
 
     Release maxRelease() {

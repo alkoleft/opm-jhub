@@ -1,12 +1,11 @@
 package io.oscript.hub.api.ospx;
 
-import io.oscript.hub.api.data.VersionInfo;
 import lombok.Data;
 
 import javax.xml.bind.annotation.XmlAttribute;
 
 @Data
-public class DependenceInfo implements VersionInfo {
+public class DependenceInfo {
     @XmlAttribute(name = "name")
     String name;
 

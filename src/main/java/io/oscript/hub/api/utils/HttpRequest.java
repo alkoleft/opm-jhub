@@ -9,7 +9,11 @@ import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 
 public class HttpRequest {
-    final static Logger logger = LoggerFactory.getLogger(HttpRequest.class);
+    private static final Logger logger = LoggerFactory.getLogger(HttpRequest.class);
+
+    private HttpRequest() {
+        throw new IllegalStateException("Utility class");
+    }
 
     public static String request(String serverURL, String resource, String description) throws IOException, InterruptedException {
         String requestUri = String.format("%s/%s", serverURL, resource);
@@ -28,22 +32,23 @@ public class HttpRequest {
         var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() != 200) {
-            logger.error("Ошибка операции {}. Код ответа {}\nОтвет:{}", description, response.statusCode(), response.body());
+            String body = response.body();
+            logger.error("Ошибка операции {}. Код ответа {}\nОтвет:{}", description, response.statusCode(), body);
             return null;
         }
 
         return response.body();
     }
 
-    public static String request(String url, String description) throws IOException, InterruptedException {
+    public static String request(String url, String description) {
         return request(URI.create(url), description, HttpResponse.BodyHandlers.ofString());
     }
 
-    public static byte[] download(URI url) throws IOException, InterruptedException {
+    public static byte[] download(URI url) {
         return request(url, "Загрузка файла", HttpResponse.BodyHandlers.ofByteArray());
     }
 
-    public static <T> T request(URI url, String description, HttpResponse.BodyHandler<T> handler) throws IOException, InterruptedException {
+    public static <T> T request(URI url, String description, HttpResponse.BodyHandler<T> handler) {
         logger.debug("{} {}", description, url);
 
         var request = java.net.http.HttpRequest.newBuilder()
@@ -56,15 +61,22 @@ public class HttpRequest {
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
 
-        var response = httpClient.send(request, handler);
+        HttpResponse<T> response;
+        try {
+            response = httpClient.send(request, handler);
+        } catch (Exception e) {
+            String message = String.format("Ошибка операции %s с %s. ", description, url);
+            logger.error(message, e);
+            return null;
+        }
         if (response.statusCode() != 200) {
+            String body = response.body().toString();
             logger.error("Ошибка операции {} с {}. Код ответа: {}", description, url, response.statusCode());
-            logger.error(response.body().toString());
+            logger.error(body);
             return null;
         }
 
         return response.body();
-
     }
 
 }

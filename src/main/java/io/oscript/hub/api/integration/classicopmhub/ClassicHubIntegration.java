@@ -1,6 +1,6 @@
 package io.oscript.hub.api.integration.classicopmhub;
 
-import io.oscript.hub.api.controllers.PackagesController;
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.integration.PackageType;
 import io.oscript.hub.api.integration.PackagesSource;
 import io.oscript.hub.api.integration.VersionSourceInfo;
@@ -21,13 +21,13 @@ import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpResponse;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -35,8 +35,10 @@ import java.util.stream.Stream;
 @Service
 public class ClassicHubIntegration implements PackagesSource {
 
-    static final Logger logger = LoggerFactory.getLogger(PackagesController.class);
+    static final Logger logger = LoggerFactory.getLogger(ClassicHubIntegration.class);
 
+    static final String PACKAGE_PAGE_TEMPLATE = "%s/package/%s";
+    static final String DOWNLOAD_PACKAGE_TEMPLATE = "{0}/download/{1}/{1}-{2}.ospx";
     @Autowired
     JSONSettingsProvider settings;
 
@@ -47,8 +49,8 @@ public class ClassicHubIntegration implements PackagesSource {
 
     ClassicHubConfiguration config = new ClassicHubConfiguration();
 
-    private List<Package> packages = new ArrayList<>();
-    private List<Version> versions = new ArrayList<>();
+    final List<Package> packages = new ArrayList<>();
+    final List<PackageVersion> versions = new ArrayList<>();
 
 
     @PostConstruct
@@ -56,22 +58,29 @@ public class ClassicHubIntegration implements PackagesSource {
         String description = "Загрузка настроек интеграции с opm hub";
         logger.info(description);
 
+        final String configName = "opm-hub-mirror";
+
         try {
-            config = settings.getConfiguration("opm-hub-mirror", ClassicHubConfiguration.class);
-            logger.info(description, JSON.serialize(config));
+            config = settings.getConfiguration(configName, ClassicHubConfiguration.class);
+            if (config != null) {
+                String configText = JSON.serialize(config);
+                logger.info(description, configText);
+            }
         } catch (Exception e) {
-            logger.error("Ошибка операции: " + description, e);
+            String message = String.format("Ошибка операции: %s", description);
+            logger.error(message, e);
         }
 
         if (config == null) {
+            logger.warn("Используются настройки по умолчанию. Не удалось загрузить настройки по ошибке или их просто нет");
             config = ClassicHubConfiguration.defaultConfiguration();
-            settings.saveConfiguration("opm-hub-mirror", config);
+            settings.saveConfiguration(configName, config);
         }
         mainChannel = store.registrationChannel(config.channel);
     }
 
     @Override
-    public void sync() {
+    public void sync() throws OperationFailedException {
         logger.info("Получение списка зарегистрированных пакетов");
         var packagesStream = config.getServers()
                 .stream()
@@ -85,156 +94,169 @@ public class ClassicHubIntegration implements PackagesSource {
 
         logger.info("Получение списка версий пакетов");
         packages.forEach(aPackage -> {
-            var loadedVersions = loadVersion(aPackage);
-            versions.addAll(loadedVersions);
-            aPackage.versions.addAll(loadedVersions);
+            var loadedVersions = loadVersions(aPackage);
+            if (loadedVersions != null) {
+                versions.addAll(loadedVersions);
+                aPackage.versions.addAll(loadedVersions);
+            }
         });
 
         if (!settings.saveConfiguration("opm-hub-packages", packages)) {
             logger.error("Не удалось сохранить список пакетов opm-hub");
         }
 
-        logger.info("Загрузка новых версий пакетов");
         downloadPackages();
     }
 
     public void downloadPackages() {
-        logger.info("Загрузка версий пакетов");
+        logger.info("Загрузка новых версий пакетов");
 
-        getVersions().stream()
+        AtomicInteger newVersions = new AtomicInteger();
+
+        versions.stream()
                 .filter(version -> !mainChannel.containsVersion(version.packageID, version.version))
                 .map(this::downloadVersion)
                 .filter(Objects::nonNull)
-                .forEach(mainChannel::pushPackage);
+                .forEach(savingPackage -> {
+                    logger.debug("Сохранение версии {}@{}", savingPackage.getName(), savingPackage.getVersion());
+                    mainChannel.pushPackage(savingPackage);
+                    newVersions.incrementAndGet();
+                });
+
+
         logger.info("Загрузка пакетов, которые не содержат версий");
         packages.stream()
-                .filter(aPackage -> aPackage.versions.size() == 0)
-                .map(this::downloadLastVersions)
-                .reduce(Stream::concat)
-                .orElseGet(Stream::empty)
+                .filter(pack -> pack.versions.isEmpty())
+                .map(this::downloadLastVersion)
                 .filter(Objects::nonNull)
                 .filter(savingPackage -> !mainChannel.containsVersion(savingPackage.getName(), savingPackage.getVersion()))
-                .forEach(mainChannel::pushPackage);
+                .forEach(savingPackage -> {
+                    mainChannel.pushPackage(savingPackage);
+                    newVersions.incrementAndGet();
+                });
 
+        if (newVersions.get() == 0) {
+            logger.info("Новых версий не обнаружено");
+        } else {
+            logger.info("Загружено {} новых версий", newVersions.get());
+        }
     }
 
-    public List<Version> getVersions() {
-        return versions;
-    }
+    SavingPackage downloadVersion(PackageVersion version) {
+        SavingPackage savingPackage = null;
 
-    SavingPackage downloadVersion(Version version) {
-        byte[] data;
         for (String server : config.getServers()) {
-            try {
-                URI downloadURL = downloadURL(server, version);
-                data = HttpRequest.download(downloadURL);
-                if (data != null) {
-                    VersionSourceInfo sourceInfo = new VersionSourceInfo();
+            savingPackage = downloadVersion(
+                    MessageFormat.format(DOWNLOAD_PACKAGE_TEMPLATE, server, version.packageID, version.version),
+                    String.format(PACKAGE_PAGE_TEMPLATE, server, version.packageID),
+                    String.format("Загрузка версии пакета %s с %s", version.fullName(), server)
+            );
 
-                    sourceInfo.setType(VersionSourceType.OPM_HUB);
-                    sourceInfo.setPackageURL(packageURL(server, version).toString());
-                    sourceInfo.setVersionURL(downloadURL.toString());
+            if (savingPackage != null)
+                break;
+        }
 
-                    return new SavingPackage(OspxPackage.parse(data), PackageType.STABLE, sourceInfo, config.channel);
-                }
-            } catch (Exception ignored) {
+        return savingPackage;
+    }
+
+    SavingPackage downloadLastVersion(Package pack) {
+
+        String description = String.format("Загрузка актуальной версии пакета %s", pack.getName());
+
+        logger.info(description);
+        for (String server : config.getServers()) {
+            SavingPackage savingPackage = downloadVersion(
+                    MessageFormat.format("{0}/download/{1}/{1}.ospx", server, pack.name),
+                    String.format(PACKAGE_PAGE_TEMPLATE, server, pack.name),
+                    String.format("%s с %s", description, server)
+            );
+
+            if (savingPackage != null) {
+                return savingPackage;
             }
         }
 
         return null;
     }
 
-    Stream<SavingPackage> downloadLastVersions(Package pack) {
+    SavingPackage downloadVersion(String downloadURL, String packageURL, String description) {
         byte[] data;
-        List<SavingPackage> packages = new ArrayList<>();
-        for (String server : config.getServers()) {
-            try {
-                URI downloadURL = downloadURL(server, pack);
-                data = HttpRequest.download(downloadURL);
-                if (data != null) {
-                    VersionSourceInfo sourceInfo = new VersionSourceInfo();
+        try {
+            data = HttpRequest.download(URI.create(downloadURL));
+            if (data != null) {
+                VersionSourceInfo sourceInfo = new VersionSourceInfo();
 
-                    sourceInfo.setType(VersionSourceType.OPM_HUB);
-                    sourceInfo.setPackageURL(packageURL(server, pack).toString());
-                    sourceInfo.setVersionURL(downloadURL.toString());
+                sourceInfo.setType(VersionSourceType.OPM_HUB);
+                sourceInfo.setPackageURL(packageURL);
+                sourceInfo.setVersionURL(downloadURL);
 
-                    packages.add(new SavingPackage(OspxPackage.parse(data), PackageType.STABLE, sourceInfo, config.channel));
+                var packageData = OspxPackage.parse(data);
+
+                if (packageData == null) {
+                    logger.error("Не удалось получить метаданные пакета");
+                    return null;
+                } else {
+                    return new SavingPackage(packageData, PackageType.STABLE, sourceInfo, config.channel);
                 }
-            } catch (Exception ignored) {
             }
+        } catch (Exception e) {
+            String message = String.format("Ошибка операции %s", description);
+            logger.error(message, e);
         }
 
-        return packages.stream();
-    }
-
-    URI downloadURL(String server, Version version) {
-        return URI.create(String.format("%s/download/%s/%s-%s.ospx", server, version.packageID, version.packageID, version.version));
-    }
-
-    URI downloadURL(String server, Package pack) {
-        return URI.create(String.format("%s/download/%s/%s.ospx", server, pack.name, pack.name));
-    }
-
-    URI packageURL(String server, Version version) {
-        return URI.create(String.format("%s/package/%s", server, version.packageID));
-    }
-
-    URI packageURL(String server, Package pack) {
-        return URI.create(String.format("%s/package/%s", server, pack.name));
+        return null;
     }
 
     Stream<String> loadPackageIDs(String server) {
-        try {
-            String description = "Получение списка пакетов";
+        String description = "Получение списка пакетов";
 
-            var stream = HttpRequest.request(URI.create(String.format("%s/download/list.txt", server)), description, HttpResponse.BodyHandlers.ofLines());
-            if (stream == null) {
-                return Stream.empty();
-            }
-
-            return stream;
-
-        } catch (Exception e) {
-            logger.error(String.format("Ошибка получения списка пакетов с %s", server), e);
+        var stream = HttpRequest.request(URI.create(String.format("%s/download/list.txt", server)), description, HttpResponse.BodyHandlers.ofLines());
+        if (stream == null) {
             return Stream.empty();
         }
+
+        return stream;
     }
 
-    List<Version> loadVersion(Package pack) {
-        List<Version> versions = new ArrayList<>();
+    List<PackageVersion> loadVersions(Package pack) {
+        List<PackageVersion> packageVersions = new ArrayList<>();
         Set<String> versionKeys = new HashSet<>();
 
         for (String server : config.getServers()) {
             try {
-                Stream.concat(versions(pack, server).stream(), versionsFromDownload(pack, server).stream())
-                        .forEach(item -> {
-                            if (!versionKeys.contains(item)) {
-                                versionKeys.add(item);
-                                versions.add(new Version(item, server, pack.getName()));
-                            }
-                        });
+                List<String> versions = versionsFromPackagePage(pack, server);
+                if (versions.isEmpty()) {
+                    versions = versionsFromDownload(pack, server);
+                }
+                versions.forEach(item -> {
+                    if (!versionKeys.contains(item)) {
+                        versionKeys.add(item);
+                        packageVersions.add(new PackageVersion(item, pack.getName()));
+                    }
+                });
+                break;
 
             } catch (Exception e) {
                 logger.error("Ошибка получения списка версий с хаба", e);
             }
         }
 
-        return versions;
+        return packageVersions;
     }
 
-    static List<String> versions(Package pack, String serverURL) throws IOException, InterruptedException {
+    static List<String> versionsFromPackagePage(Package pack, String serverURL) {
 
         return parseVersions(
-                String.format("%s/package/%s", serverURL, pack.name),
-                Pattern.compile("<a.+download\\/(.+)\\/\\1-(.+)\\.ospx\">\\2<\\/a>"),
+                String.format(PACKAGE_PAGE_TEMPLATE, serverURL, pack.name),
+                Pattern.compile("<a.+download/(.+)/\\1-(.+)\\.ospx\">\\2</a>"),
                 pack.name);
     }
 
-    static List<String> versionsFromDownload(Package pack, String serverURL) throws IOException, InterruptedException {
+    static List<String> versionsFromDownload(Package pack, String serverURL) {
 
         return parseVersions(
                 String.format("%s/download/%s", serverURL, pack.name),
-                Pattern.compile(">(.+)-(.+)\\.ospx<\\/a>"),
+                Pattern.compile(">(.+)-(.+)\\.ospx</a>"),
                 pack.name);
     }
 
@@ -243,11 +265,7 @@ public class ClassicHubIntegration implements PackagesSource {
 
         List<String> versions = new ArrayList<>();
 
-        String response = null;
-        try {
-            response = HttpRequest.request(url, "Получение списка версий (download/) с хаба");
-        } catch (Exception ignored) {
-        }
+        String response = HttpRequest.request(url, "Получение списка версий (download/) с хаба");
 
         if (response == null) {
             logger.error("Не удалось получить список версий {}", url);

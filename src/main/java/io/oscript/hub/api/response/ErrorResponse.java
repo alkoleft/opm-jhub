@@ -2,7 +2,7 @@ package io.oscript.hub.api.response;
 
 public class ErrorResponse extends Response {
 
-    private String error;
+    private final String error;
 
     public ErrorResponse(Exception error) {
         super(false, null);

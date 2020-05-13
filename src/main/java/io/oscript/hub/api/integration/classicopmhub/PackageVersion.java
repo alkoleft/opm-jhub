@@ -4,15 +4,16 @@ import io.oscript.hub.api.integration.VersionBase;
 import lombok.Data;
 
 @Data
-public class Version implements VersionBase {
+public class PackageVersion implements VersionBase {
     String version;
-    String server;
     String packageID;
 
-    public Version(String version, String server, String packageID) {
+    public PackageVersion(String version, String packageID) {
         this.version = version;
-        this.server = server;
         this.packageID = packageID;
     }
 
+    String fullName() {
+        return String.format("%s@%s", packageID, version);
+    }
 }

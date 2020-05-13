@@ -5,4 +5,5 @@ gradlew
 build/*
 gradle/*
 application.properties
-*.json
+/*.json
+/gradle.properties

@@ -1,5 +1,6 @@
 package io.oscript.hub.api.integration.github;
 
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.integration.PackagesSource;
 import io.oscript.hub.api.storage.Channel;
 import io.oscript.hub.api.storage.JSONSettingsProvider;
@@ -25,8 +26,8 @@ import java.util.stream.Stream;
 @Service
 public class GithubIntegration implements PackagesSource {
 
-    final static Logger logger = LoggerFactory.getLogger(GithubIntegration.class);
-    static GitHub client;
+    static final Logger logger = LoggerFactory.getLogger(GithubIntegration.class);
+    private GitHub client;
 
     @Autowired
     Storage store;
@@ -46,26 +47,22 @@ public class GithubIntegration implements PackagesSource {
         config = settings.getConfiguration("github", GithubConfig.class);
         if (config == null) {
             config = new GithubConfig();
+            logger.warn("Использованы настройки по умолчанию");
+        } else {
+            String configText = JSON.serialize(config);
+            logger.info("Загружены настройки {}", configText);
         }
-
-        logger.info("Загружены настройки {}", JSON.serialize(config));
 
         logger.info("Загрузка списка найденных репозиториев");
         repositories = settings.getConfigurationList("repositories", Repository.class);
-        if (repositories == null) {
-            repositories = new ArrayList<>();
-        }
-
-        repositories.forEach(repository -> repository.getReleases().forEach(release -> release.repository = repository));
-
-        mainChannel = store.registrationChannel(config.channel);
 
         logger.info("Загружен список репозиториев, {} репозиториев", repositories.size());
 
+        mainChannel = store.registrationChannel(config.channel);
     }
 
     @Override
-    public void sync() throws Exception {
+    public void sync() throws OperationFailedException {
         logger.info("Синхронизация с Github");
         findNewRepositories();
         findNewReleases();
@@ -76,7 +73,7 @@ public class GithubIntegration implements PackagesSource {
         return repositories;
     }
 
-    private void findNewRepositories() throws IOException {
+    private void findNewRepositories() {
         logger.info("Поиск репозиториев");
         logger.debug("Формирование списка источников");
         var sources = Stream.concat(
@@ -115,19 +112,28 @@ public class GithubIntegration implements PackagesSource {
         }
     }
 
-    private void findNewReleases() throws IOException {
+    private void findNewReleases() throws OperationFailedException {
 
         logger.info("Поиск новых релизов");
         boolean needSave = false;
 
         for (Repository rep : repositories) {
-            var newReleases = loadReleases(rep, true);
+            List<Release> newReleases;
+            try {
+                newReleases = loadReleases(rep);
+            } catch (IOException e) {
+                throw new OperationFailedException("Получение списка релизов", e);
+            }
 
-            needSave |= newReleases.size() > 0;
+            needSave |= !newReleases.isEmpty();
 
-            if (newReleases.size() > 0) {
-                logger.info("Новые релизы для {}\n{}", rep.getFullName(),
-                        String.join("\t\t\n", newReleases.stream().map(Release::getVersion).toArray(CharSequence[]::new)));
+            if (!newReleases.isEmpty()) {
+                String releasesString = String.join("\t\t\n",
+                        newReleases.stream()
+                                .map(Release::getVersion)
+                                .toArray(CharSequence[]::new)
+                );
+                logger.info("Новые релизы для {}\n{}", rep.getFullName(), releasesString);
             }
 
             newReleases.forEach(rep::addRelease);
@@ -137,8 +143,8 @@ public class GithubIntegration implements PackagesSource {
             saveRepositories();
     }
 
-    private boolean saveRepositories() {
-        return settings.saveConfiguration("repositories", repositories);
+    private void saveRepositories() {
+        settings.saveConfiguration("repositories", repositories);
     }
 
     private Stream<Repository> findNewRepositories(GHPerson person) {
@@ -149,7 +155,6 @@ public class GithubIntegration implements PackagesSource {
                     .values()
                     .stream()
                     .map(this::analyzeFork)
-                    .filter(Objects::nonNull)
                     .reduce(Stream::concat)
                     .orElseGet(Stream::empty)
                     .filter(ghrep -> !repositoriesKeys.contains(ghrep.getFullName()))
@@ -162,26 +167,24 @@ public class GithubIntegration implements PackagesSource {
         }
     }
 
-    private List<Release> loadReleases(Repository rep, boolean onlyNew) throws IOException {
-        Release lastRelease = null;
-        if (onlyNew) {
-            lastRelease = rep.maxRelease();
-            logger.debug("Загрузка только новых релизов {} (Текущий релиз: {})", rep.getFullName(),
-                    lastRelease == null ? "нет" : lastRelease.getVersion());
-        }
+    private List<Release> loadReleases(Repository rep) throws IOException {
+        Release lastRelease;
+        lastRelease = rep.maxRelease();
+        logger.debug("Загрузка только новых релизов {} (Текущий релиз: {})", rep.getFullName(),
+                lastRelease == null ? "нет" : lastRelease.getVersion());
 
         GHRepository repository = getClient().getRepository(rep.getFullName());
 
         List<Release> releases = new ArrayList<>();
 
         for (var ghRelease : repository.listReleases()) {
-            if (ghRelease.isDraft() || (!config.collectPreReleases && ghRelease.isPrerelease()))
-                continue;
-            if (lastRelease != null && lastRelease.compareTag(ghRelease.getTagName()) >= 0) {
-                break;
-            }
+            if (!ghRelease.isDraft() && (config.collectPreReleases || !ghRelease.isPrerelease())) {
+                if (lastRelease != null && lastRelease.compareVersion(ghRelease.getTagName()) >= 0) {
+                    break;
+                }
 
-            releases.add(Release.create(ghRelease));
+                releases.add(Release.create(ghRelease));
+            }
         }
         return releases;
     }
