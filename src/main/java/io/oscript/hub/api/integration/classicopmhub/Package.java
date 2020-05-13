@@ -8,7 +8,7 @@ import java.util.List;
 @Data
 public class Package {
     String name;
-    List<Version> versions = new ArrayList<>();
+    List<PackageVersion> versions = new ArrayList<>();
 
     public Package(String name) {
         this.name = name;

@@ -7,65 +7,59 @@ import java.time.LocalDateTime;
 import java.util.concurrent.CompletableFuture;
 
 public class TaskContainer<T> {
-    LocalDateTime startDate;
-    LocalDateTime finishData;
-    Throwable taskException;
-    CompletableFuture<T> future;
-    SimpleTask<T> task;
 
-    Logger logger = LoggerFactory.getLogger(TaskContainer.class);
+    JobStatus status = JobStatus
+            .builder()
+            .status("Не запускался")
+            .build();
+
+    private Throwable taskException;
+    private CompletableFuture<T> future;
+    private final SimpleTask<T> task;
+
+    private static final Logger logger = LoggerFactory.getLogger(TaskContainer.class);
 
     public TaskContainer(SimpleTask<T> task) {
         this.task = task;
     }
 
-    public CompletableFuture<T> run() throws JobAlreadyExecuting {
+    public void run(LaunchType type) throws JobAlreadyExecuting {
 
-        logger.info("Попытка запуска задачи");
+        logger.info("Попытка запуска задачи. {}", type);
         if (isRunning()) {
             logger.info("Задача уже запущенна");
             throw new JobAlreadyExecuting();
         }
         beforeStart();
+        status.launchType = type;
         future = task.run();
         future.handle(this::onComplete);
-        logger.info("Задача запущенна");
-
-        return future;
+        logger.info("Задача запущенна. {}", type);
     }
 
     private void beforeStart() {
         logger.info("Запуск задачи");
-        startDate = LocalDateTime.now();
-        finishData = null;
+        status.status = "Исполняется";
+        status.lastStartDate = LocalDateTime.now();
+        status.lastFinishData = null;
         taskException = null;
     }
 
     private T onComplete(T result, Throwable exception) {
 
-        finishData = LocalDateTime.now();
+        status.lastFinishData = LocalDateTime.now();
         taskException = exception;
         if (exception == null) {
-            logger.info("Задача завершена");
+            logger.info("Задача завершена. {}", status.launchType);
+            status.status = "Завершено успешно";
         } else {
             logger.info("Задача завершена с ошибкой", exception);
+            status.status = "Завершено с ошибкой: " + taskException.getMessage();
         }
-        return null;
+        return result;
     }
 
     public JobStatus getStatus() {
-        JobStatus status = new JobStatus();
-        status.startDate = startDate;
-        status.finishData = finishData;
-        if (future == null) {
-            status.status = "Не запускался";
-        } else if (isRunning()) {
-            status.status = "Исполняется";
-        } else if (taskException == null) {
-            status.status = "Завершено успешно";
-        } else {
-            status.status = "Завершено с ошибкой: " + taskException.getMessage();
-        }
 
         return status;
     }

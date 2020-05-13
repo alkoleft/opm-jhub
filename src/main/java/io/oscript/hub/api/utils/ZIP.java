@@ -10,7 +10,11 @@ import java.util.zip.ZipInputStream;
 
 public class ZIP {
 
-    public static Map<String, byte[]> unpuck(InputStream iStream) throws IOException {
+    private ZIP() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    public static Map<String, byte[]> unPuck(InputStream iStream) throws IOException {
 
         int bufferSize = 1024;
 

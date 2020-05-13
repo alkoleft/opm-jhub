@@ -7,9 +7,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 @EnableAsync
-public class VoidTask extends SimpleTask<Void> {
+public class VoidTask implements SimpleTask<Void> {
 
-    PackagesSource worker;
+    private final PackagesSource worker;
 
     public VoidTask(PackagesSource worker) {
         this.worker = worker;
@@ -26,10 +26,5 @@ public class VoidTask extends SimpleTask<Void> {
             }
             return null;
         });
-    }
-
-    @Override
-    public String getName() {
-        return worker.getClass().getSimpleName();
     }
 }

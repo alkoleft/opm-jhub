@@ -1,5 +1,6 @@
 package io.oscript.hub.api.controllers;
 
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.storage.Channel;
 import io.oscript.hub.api.storage.ChannelInfo;
 import io.oscript.hub.api.storage.StoredPackageInfo;
@@ -22,7 +23,7 @@ public class ChannelsController extends BaseController {
     static final Logger logger = LoggerFactory.getLogger(ChannelsController.class);
 
     @GetMapping("/")
-    public ResponseEntity<ChannelInfo[]> list() throws IOException {
+    public ResponseEntity<ChannelInfo[]> list() {
         var body = Arrays.stream(store.getChannels()).map(Channel::getChannelInfo).toArray(ChannelInfo[]::new);
 
         return ResponseEntity
@@ -32,7 +33,7 @@ public class ChannelsController extends BaseController {
     }
 
     @GetMapping("{name}")
-    public ResponseEntity<List<StoredPackageInfo>> getItem(@PathVariable("name") String name) throws IOException {
+    public ResponseEntity<List<StoredPackageInfo>> getItem(@PathVariable("name") String name) throws IOException, OperationFailedException {
         var body = store.getChannel(name).getPackages();
 
         return ResponseEntity
@@ -45,7 +46,7 @@ public class ChannelsController extends BaseController {
     public ResponseEntity<StoredPackageInfo> packageInfo(@PathVariable("channel")
                                                                  String channel,
                                                          @PathVariable("name")
-                                                                 String packageName) {
+                                                                 String packageName) throws IOException {
         var body = store.getChannel(channel).getPackage(packageName);
 
         if (body != null) {
@@ -63,7 +64,7 @@ public class ChannelsController extends BaseController {
     public ResponseEntity<List<StoredVersionInfo>> versions(@PathVariable("channel")
                                                                     String channel,
                                                             @PathVariable("name")
-                                                                    String packageName) throws IOException {
+                                                                    String packageName) throws IOException, OperationFailedException {
         var body = store.getChannel(channel).getVersions(packageName);
 
         if (body != null) {
@@ -84,7 +85,7 @@ public class ChannelsController extends BaseController {
                                                                 @PathVariable("name")
                                                                         String packageName,
                                                                 @PathVariable("version")
-                                                                        String version) {
+                                                                        String version) throws IOException {
         var body = store.getChannel(channel).getVersion(packageName, version);
 
         if (body != null) {

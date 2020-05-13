@@ -1,9 +1,7 @@
 package io.oscript.hub.api.integration.github;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.oscript.hub.api.integration.VersionBase;
-import io.oscript.hub.api.ospx.OspxPackage;
-import io.oscript.hub.api.utils.Common;
+import io.oscript.hub.api.utils.VersionComparator;
 import lombok.Data;
 import org.kohsuke.github.GHRelease;
 
@@ -19,16 +17,14 @@ public class Release implements VersionBase {
     String zipUrl;
     String packageUrl;
 
-    @JsonIgnore
-    Repository repository;
-
     public static Release create(GHRelease ghRelease) {
         Release release = new Release();
         release.setTag(ghRelease.getTagName());
         release.setZipUrl(ghRelease.getZipballUrl());
         try {
             release.setDate(ghRelease.getCreatedAt());
-        } catch (IOException ignore) {
+        } catch (IOException e) {
+            GithubIntegration.logger.error("Ошибка разбора даты создания релиза", e);
         }
 
         try {
@@ -38,7 +34,8 @@ public class Release implements VersionBase {
                 }
 
             }
-        } catch (IOException ignore) {
+        } catch (IOException e) {
+            GithubIntegration.logger.error("Ошибка получения списка прикрепленных артефактов релиза", e);
         }
         return release;
     }
@@ -53,12 +50,8 @@ public class Release implements VersionBase {
         }
     }
 
-    public int compareTag(String tag) {
-        if (Common.isNullOrEmpty(this.tag)) {
-            return this.version.compareToIgnoreCase(getVersionFormTag(tag));
-        } else {
-            return this.tag.compareToIgnoreCase(tag);
-        }
+    public int compareVersion(String tag) {
+        return VersionComparator.compare(version, getVersionFormTag(tag));
     }
 
     public void setTag(String tag) {
@@ -67,10 +60,4 @@ public class Release implements VersionBase {
             version = getVersionFormTag(tag);
         }
     }
-
-    @JsonIgnore
-    public OspxPackage getPackage() {
-        return null;
-    }
-
 }

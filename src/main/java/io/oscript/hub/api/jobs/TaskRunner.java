@@ -1,48 +1,36 @@
 package io.oscript.hub.api.jobs;
 
+import io.oscript.hub.api.exceptions.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Service;
-
-import javax.annotation.PostConstruct;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @Service
 @Configuration
+@EnableScheduling
 public class TaskRunner {
 
-    Map<String, TaskContainer<Void>> tasks = new LinkedHashMap<>();
-
     @Autowired
-    ApplicationContext context;
+    JobsConfiguration jobsConfiguration;
 
-    @PostConstruct
-    public void createTasks() {
-        var tasksNames = context.getBeanNamesForType(VoidTask.class);
-        for (String taskName : tasksNames) {
-            VoidTask task = context.getBean(taskName, VoidTask.class);
-            tasks.put(taskName, new TaskContainer<>(task));
-        }
-    }
 
-    public JobStatus startTask(String taskName) {
-        if (!tasks.containsKey(taskName)) {
-            return new JobStatus("Задание с таким именем не обнаружено");
-        }
-
-        var task = tasks.get(taskName);
+    public JobStatus startTask(String name, LaunchType launchType) {
+        var job = getJob(name);
+        var task = job.taskContainer;
 
         boolean alreadyRunning = task.isRunning();
-        try {
-            task.run();
-        } catch (JobAlreadyExecuting ignored) {
-            alreadyRunning = true;
+        if (!alreadyRunning) {
+            try {
+                task.run(launchType);
+            } catch (JobAlreadyExecuting e) {
+                alreadyRunning = true;
+            }
         }
         var status = task.getStatus();
 
         if (alreadyRunning) {
+            status = status.copy();
             status.status = "Уже запущенна";
         }
 
@@ -50,12 +38,27 @@ public class TaskRunner {
 
     }
 
-    public JobStatus statusTask(String taskName) {
-        if (!tasks.containsKey(taskName)) {
-            return new JobStatus("Задание с таким именем не обнаружено");
+    public JobStatus statusTask(String name) {
+        var job = getJob(name);
+
+        return job.taskContainer.getStatus();
+    }
+
+    public JobInfo jobInfo(String name) {
+        var job = getJob(name);
+
+        job.status = statusTask(name);
+        return job;
+    }
+
+    JobInfo getJob(String name) {
+        var job = jobsConfiguration.getJob(name);
+
+        if (job == null) {
+            throw new EntityNotFoundException(String.format("Задание с именем %s не обнаружено", name));
         }
 
-        return tasks.get(taskName).getStatus();
+        return job;
     }
 
 }

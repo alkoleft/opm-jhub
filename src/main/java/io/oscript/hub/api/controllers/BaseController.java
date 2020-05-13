@@ -1,6 +1,5 @@
 package io.oscript.hub.api.controllers;
 
-import io.oscript.hub.api.data.RequestParameters;
 import io.oscript.hub.api.integration.PackageType;
 import io.oscript.hub.api.integration.VersionSourceInfo;
 import io.oscript.hub.api.ospx.OspxPackage;
@@ -25,14 +24,14 @@ public class BaseController {
     @Autowired
     Storage store;
 
-    <T> ResponseEntity<T> getResponse(Response response) {
+    ResponseEntity<Response> getResponse(Response response) {
         if (response instanceof ErrorResponse) {
             return ResponseEntity
                     .badRequest()
-                    .body((T) response);
+                    .body(response);
         } else {
             return ResponseEntity
-                    .ok((T) response);
+                    .ok(response);
         }
     }
 
@@ -82,7 +81,7 @@ public class BaseController {
     }
 
     <T> T firstOrNull(List<T> items) {
-        if (items == null || items.size() == 0)
+        if (items == null || items.isEmpty())
             return null;
         else
             return items.get(0);

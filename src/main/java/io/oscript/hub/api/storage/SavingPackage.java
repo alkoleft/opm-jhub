@@ -3,22 +3,13 @@ package io.oscript.hub.api.storage;
 import io.oscript.hub.api.integration.PackageType;
 import io.oscript.hub.api.integration.VersionSourceInfo;
 import io.oscript.hub.api.ospx.OspxPackage;
-import io.oscript.hub.api.utils.Constants;
 
 public class SavingPackage {
 
-    OspxPackage packageData;
-    VersionSourceInfo sourceInfo;
-    String channel;
-    PackageType type;
-
-    public SavingPackage(OspxPackage packageData) {
-        this(packageData, PackageType.UNKNOWN, VersionSourceInfo.UNKNOWN, Constants.STABLE);
-    }
-
-    public SavingPackage(OspxPackage packageData, String channel) {
-        this(packageData, PackageType.UNKNOWN, VersionSourceInfo.UNKNOWN, channel);
-    }
+    private final OspxPackage packageData;
+    private final VersionSourceInfo sourceInfo;
+    private final String channel;
+    private final PackageType type;
 
     public SavingPackage(OspxPackage packageData, PackageType type, VersionSourceInfo sourceInfo, String channel) {
         this.packageData = packageData;
@@ -37,5 +28,17 @@ public class SavingPackage {
 
     public String getChannel() {
         return channel;
+    }
+
+    public OspxPackage getPackageData() {
+        return packageData;
+    }
+
+    public VersionSourceInfo getSourceInfo() {
+        return sourceInfo;
+    }
+
+    public PackageType getType() {
+        return type;
     }
 }

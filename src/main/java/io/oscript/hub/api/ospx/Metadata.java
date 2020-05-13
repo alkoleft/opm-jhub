@@ -3,7 +3,7 @@ package io.oscript.hub.api.ospx;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
-import io.oscript.hub.api.data.IPackageMetadata;
+import io.oscript.hub.api.storage.IPackageMetadata;
 import lombok.Data;
 
 import javax.xml.bind.annotation.XmlAccessType;

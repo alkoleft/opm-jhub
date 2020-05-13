@@ -1,7 +1,6 @@
 package io.oscript.hub.api.storage;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import io.oscript.hub.api.data.IPackageMetadata;
 import io.oscript.hub.api.ospx.DependenceInfo;
 import lombok.Data;
 
@@ -25,4 +24,13 @@ public class Metadata implements IPackageMetadata {
     String description;
 
     List<DependenceInfo> dependencies = new ArrayList<>();
+
+    public static Metadata create(String name, String version) {
+        Metadata result = new Metadata();
+        result.name = name;
+        result.version = version;
+
+        return result;
+    }
+
 }

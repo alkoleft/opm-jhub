@@ -1,10 +1,14 @@
 package io.oscript.hub.api.storage;
 
+import io.oscript.hub.api.exceptions.EntityNotFoundException;
+import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.utils.Constants;
+import io.oscript.hub.api.utils.Naming;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -13,21 +17,24 @@ public class Storage {
     @Autowired
     IStoreProvider storeProvider;
 
-    Map<String, Channel> channels = new LinkedHashMap<>();
+    private final Map<String, Channel> channels = new LinkedHashMap<>();
 
     @PostConstruct
-    void initialize() {
+    void initialize() throws IOException, OperationFailedException {
         initializeChannels();
     }
 
     // region Channels
 
-    void initializeChannels() {
+    void initializeChannels() throws IOException, OperationFailedException {
         storeProvider.getChannels().forEach(channelInfo -> {
-            Channel channel = new Channel(channelInfo);
-            channel.storeProvider = storeProvider;
-            channels.put(channelInfo.name.toLowerCase(), channel);
+            Naming.checkChannelName(channelInfo.name);
+            newChannel(channelInfo);
         });
+
+        if (channels.isEmpty()) {
+            registrationChannel("stable");
+        }
     }
 
     public Channel[] getChannels() {
@@ -43,18 +50,34 @@ public class Storage {
     }
 
     public Channel getChannel(String name) {
+        if (!channels.containsKey(name)) {
+            throw EntityNotFoundException.channelNotFound(name);
+        }
+
+        Naming.checkChannelName(name);
         return channels.getOrDefault(name, null);
     }
 
-    public Channel registrationChannel(String name) {
+    public Channel registrationChannel(String name) throws IOException {
+        Naming.checkChannelName(name);
         Channel channel;
-        if ((channel = getChannel(name)) == null) {
-            channels.put(name.toLowerCase(), channel = new Channel(storeProvider.channelRegistration(name)));
+        if (channels.containsKey(name)) {
+            channel = getChannel(name);
+        } else {
+            channel = newChannel(storeProvider.channelRegistration(name));
         }
 
         return channel;
     }
 
+    Channel newChannel(ChannelInfo channelInfo) {
+        Channel channel = new Channel(channelInfo);
+
+        channel.storeProvider = storeProvider;
+        channels.put(channel.getName().toLowerCase(), channel);
+
+        return channel;
+    }
     // endregion
 
 }

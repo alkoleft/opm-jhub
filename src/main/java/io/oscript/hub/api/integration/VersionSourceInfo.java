@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class VersionSourceInfo {
 
-    public final static VersionSourceInfo UNKNOWN = new VersionSourceInfo(VersionSourceType.UNKNOWN);
+    public static final VersionSourceInfo UNKNOWN = new VersionSourceInfo(VersionSourceType.UNKNOWN);
     public static final VersionSourceInfo MANUAL = new VersionSourceInfo(VersionSourceType.MANUAL_PUSH);
 
     VersionSourceType type = VersionSourceType.UNKNOWN;
