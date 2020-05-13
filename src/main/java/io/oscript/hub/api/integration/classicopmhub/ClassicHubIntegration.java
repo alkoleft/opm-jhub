@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -110,25 +111,35 @@ public class ClassicHubIntegration implements PackagesSource {
     public void downloadPackages() {
         logger.info("Загрузка новых версий пакетов");
 
-        var newVersions = versions.stream()
+        AtomicInteger newVersions = new AtomicInteger();
+
+        versions.stream()
                 .filter(version -> !mainChannel.containsVersion(version.packageID, version.version))
                 .map(this::downloadVersion)
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .forEach(savingPackage -> {
+                    logger.debug("Сохранение версии {}@{}", savingPackage.getName(), savingPackage.getVersion());
+                    mainChannel.pushPackage(savingPackage);
+                    newVersions.incrementAndGet();
+                });
 
-        if (newVersions.isEmpty()) {
-            logger.info("Новых версий не обнаружено");
-        } else {
-            newVersions.forEach(mainChannel::pushPackage);
-        }
+
         logger.info("Загрузка пакетов, которые не содержат версий");
         packages.stream()
                 .filter(pack -> pack.versions.isEmpty())
                 .map(this::downloadLastVersion)
                 .filter(Objects::nonNull)
                 .filter(savingPackage -> !mainChannel.containsVersion(savingPackage.getName(), savingPackage.getVersion()))
-                .forEach(mainChannel::pushPackage);
+                .forEach(savingPackage -> {
+                    mainChannel.pushPackage(savingPackage);
+                    newVersions.incrementAndGet();
+                });
 
+        if (newVersions.get() == 0) {
+            logger.info("Новых версий не обнаружено");
+        } else {
+            logger.info("Загружено {} новых версий", newVersions.get());
+        }
     }
 
     SavingPackage downloadVersion(PackageVersion version) {
@@ -213,13 +224,17 @@ public class ClassicHubIntegration implements PackagesSource {
 
         for (String server : config.getServers()) {
             try {
-                Stream.concat(versionsFromPackagePage(pack, server).stream(), versionsFromDownload(pack, server).stream())
-                        .forEach(item -> {
-                            if (!versionKeys.contains(item)) {
-                                versionKeys.add(item);
-                                packageVersions.add(new PackageVersion(item, pack.getName()));
-                            }
-                        });
+                List<String> versions = versionsFromPackagePage(pack, server);
+                if (versions.isEmpty()) {
+                    versions = versionsFromDownload(pack, server);
+                }
+                versions.forEach(item -> {
+                    if (!versionKeys.contains(item)) {
+                        versionKeys.add(item);
+                        packageVersions.add(new PackageVersion(item, pack.getName()));
+                    }
+                });
+                break;
 
             } catch (Exception e) {
                 logger.error("Ошибка получения списка версий с хаба", e);

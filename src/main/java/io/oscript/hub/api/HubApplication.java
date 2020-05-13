@@ -4,10 +4,11 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 
-@SpringBootApplication(exclude = { DataSourceAutoConfiguration.class })
+@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
 public class HubApplication {
     public static void main(String[] args) {
         System.setProperty("spring.devtools.restart.enabled", "true");
+        System.setProperty("spring.main.banner-mode", "off");
         SpringApplication.run(HubApplication.class, args);
     }
 }

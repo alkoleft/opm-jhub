@@ -1,6 +1,5 @@
 package io.oscript.hub.api.storage;
 
-import io.oscript.hub.api.config.HubConfiguration;
 import io.oscript.hub.api.exceptions.EntityNotFoundException;
 import io.oscript.hub.api.exceptions.OperationFailedException;
 import io.oscript.hub.api.utils.Constants;
@@ -18,9 +17,6 @@ public class Storage {
     @Autowired
     IStoreProvider storeProvider;
 
-    @Autowired
-    HubConfiguration appConfiguration;
-
     private final Map<String, Channel> channels = new LinkedHashMap<>();
 
     @PostConstruct
@@ -33,9 +29,7 @@ public class Storage {
     void initializeChannels() throws IOException, OperationFailedException {
         storeProvider.getChannels().forEach(channelInfo -> {
             Naming.checkChannelName(channelInfo.name);
-            Channel channel = new Channel(channelInfo);
-            channel.storeProvider = storeProvider;
-            channels.put(channelInfo.name.toLowerCase(), channel);
+            newChannel(channelInfo);
         });
 
         if (channels.isEmpty()) {
@@ -70,13 +64,20 @@ public class Storage {
         if (channels.containsKey(name)) {
             channel = getChannel(name);
         } else {
-            channel = new Channel(storeProvider.channelRegistration(name));
-            channels.put(name.toLowerCase(), channel);
+            channel = newChannel(storeProvider.channelRegistration(name));
         }
 
         return channel;
     }
 
+    Channel newChannel(ChannelInfo channelInfo) {
+        Channel channel = new Channel(channelInfo);
+
+        channel.storeProvider = storeProvider;
+        channels.put(channel.getName().toLowerCase(), channel);
+
+        return channel;
+    }
     // endregion
 
 }

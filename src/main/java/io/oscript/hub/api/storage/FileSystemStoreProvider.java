@@ -27,7 +27,7 @@ public class FileSystemStoreProvider implements IStoreProvider {
     private static final String PACKAGE_JSON = "package.json";
     private static final String VERSION_JSON = "version.json";
 
-    @Value("${hub.workpath}")
+    @Value("${hub.workpath:data}")
     private Path workPath;
 
     @PostConstruct

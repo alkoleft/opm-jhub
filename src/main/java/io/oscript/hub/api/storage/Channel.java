@@ -43,6 +43,9 @@ public class Channel {
 
         Naming.check(pack.getChannel(), pack.getName(), pack.getVersion());
 
+        if (!storeProvider.existPackage(getName(), pack.getName())) {
+            createNewPackage(pack.getName());
+        }
         if (!(storeProvider.saveVersionBin(pack) && storeProvider.saveVersion(pack))) {
             return null;
         }
@@ -54,20 +57,17 @@ public class Channel {
             versionInfo = getVersion(pack.getName(), pack.getVersion());
             packageInfo = getPackage(pack.getName());
         } catch (Exception e) {
-            logger.error("Ошибка получения информации о версии пакета");
+            logger.error("Ошибка получения информации о версии пакета", e);
             versionInfo = null;
             packageInfo = null;
         }
 
-        if (versionInfo == null) {
+        if (versionInfo == null || packageInfo == null) {
             logger.error("Ну далось получить информацию о сохраненном пакете");
             return null;
         }
 
-        if (packageInfo == null) {
-            packageInfo = StoredPackageInfo.create(versionInfo.getMetadata());
-            storeProvider.savePackage(channelInfo.name, packageInfo);
-        } else if (VersionComparator.large(versionInfo.getVersion(), packageInfo.getVersion())) {
+        if (VersionComparator.large(versionInfo.getVersion(), packageInfo.getVersion())) {
             packageInfo.setMetadata(versionInfo.getMetadata());
             storeProvider.savePackage(channelInfo.name, packageInfo);
         }
@@ -128,4 +128,13 @@ public class Channel {
         }
     }
     // endregion
+
+
+    public void createNewPackage(String name) {
+
+        StoredPackageInfo pack = new StoredPackageInfo();
+        pack.setName(name);
+
+        storeProvider.savePackage(getName(), pack);
+    }
 }

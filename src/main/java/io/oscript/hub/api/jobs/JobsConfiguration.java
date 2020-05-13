@@ -19,7 +19,6 @@ import org.springframework.scheduling.support.CronTrigger;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,21 +114,12 @@ public class JobsConfiguration implements SchedulingConfigurer {
         }
     }
 
-    List<JobSettings> defaultSettings() {
-        List<JobSettings> settings = new ArrayList<>();
-
-        for (var jobName : jobs.keySet()) {
-            settings.add(new JobSettings(jobName, "* * */2 * * ?"));
-        }
-
-        return settings;
-    }
-
     JobInfo githubSyncJob() {
         JobInfo job = new JobInfo();
         job.name = "githubSync";
         job.description = "Загрузка пакетов с github";
-        job.settings = new JobSettings(job.name, "0 0 */2 * * ?");
+        job.settings = new JobSettings(job.name, "0 10 */2 * * ?");
+        job.settings.schedule = false;
         job.taskContainer = new TaskContainer<>(new VoidTask(context.getBean(GithubIntegration.class)));
         return job;
     }

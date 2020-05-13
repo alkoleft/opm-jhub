@@ -16,7 +16,7 @@ public class JSONSettingsProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(JSONSettingsProvider.class);
 
-    @Value("${hub.workpath}")
+    @Value("${hub.workpath:data}")
     private Path workPath;
 
     // region Paths
