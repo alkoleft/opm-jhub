@@ -13,8 +13,8 @@ Java версия хаба для пакетов One Script
 
 [Установка](./install.md)
 
-[Настройка](./install.md)
+[Настройка](./configure.md)
 
-[REST API](./install.md)
+[REST API](./swagger)
 
 [Релизы](./release-notes/index.md)
